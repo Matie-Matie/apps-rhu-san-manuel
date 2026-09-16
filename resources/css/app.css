@@ -1,0 +1,311 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design Tokens ─── */
+:root {
+    --color-bg: #F6F7FB;
+    --color-surface: #FFFFFF;
+    --color-surface-secondary: #F2F4F8;
+    --color-accent: #589D4C;
+    --color-accent-dark: #427639;
+    --color-accent-light: #EFF6EE;
+    --color-text: #1E1E1E;
+    --color-text-muted: #7B7B7B;
+    --color-text-secondary: #5E5F66;
+    --color-border: #ECECEC;
+    --color-border-light: #F2F4F8;
+    --radius-card: 20px;
+    --radius-control: 10px;
+    --radius-input: 12px;
+    --radius-pill: 999px;
+    --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.04);
+    --shadow-card-hover: 0 8px 28px rgba(0, 0, 0, 0.07);
+    --ease-matie: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Base Layer ─── */
+@layer base {
+    body {
+        @apply bg-bg text-soil-900 antialiased;
+        font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    }
+
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: var(--color-border);
+        border-radius: var(--radius-pill);
+        border: 2px solid transparent;
+        background-clip: content-box;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--color-text-muted);
+        background-clip: content-box;
+        border: 2px solid transparent;
+    }
+
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-border) transparent;
+    }
+
+    ::selection {
+        background: var(--color-accent-light);
+        color: var(--color-accent-dark);
+    }
+}
+
+/* ─── Components Layer ─── */
+@layer components {
+    /* ── Buttons ── */
+    .btn {
+        @apply inline-flex items-center justify-center gap-1.5 rounded-control px-4 py-2.5 text-sm font-medium transition-all duration-200 ease-matie focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98];
+    }
+
+    .btn-primary {
+        @apply bg-accent-500 text-white shadow-sm hover:bg-accent-600;
+    }
+
+    .btn-secondary {
+        @apply border border-soil-200 bg-surface text-soil-700 hover:bg-soil-50 hover:text-soil-900;
+    }
+
+    .btn-danger {
+        @apply bg-error text-white shadow-sm hover:opacity-90;
+    }
+
+    .btn-ghost {
+        @apply text-accent-600 hover:bg-accent-50 hover:text-accent-700;
+    }
+
+    .btn-sm {
+        @apply px-3 py-2 text-[13px];
+    }
+
+    /* ── Icon buttons (table actions) ── */
+    .icon-btn {
+        @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-soil-200 bg-surface text-soil-500 transition-all duration-150 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400;
+    }
+
+    .icon-btn svg {
+        @apply h-[18px] w-[18px];
+    }
+
+    /* ── Forms ── */
+    .input-field {
+        @apply block w-full rounded-input border border-soil-200 bg-surface px-3.5 py-2.5 text-sm text-soil-900 shadow-sm placeholder:text-soil-400 transition-all duration-200 ease-matie focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-200 disabled:cursor-not-allowed disabled:bg-soil-50 disabled:text-soil-500;
+    }
+
+    textarea.input-field {
+        @apply resize-y;
+    }
+
+    .input-label {
+        @apply block text-sm font-medium text-soil-700;
+    }
+
+    .input-error {
+        @apply mt-1.5 text-xs text-error;
+    }
+
+    .form-hint {
+        @apply mt-1.5 text-xs text-soil-500;
+    }
+
+    /* ── Status badges ──
+       Dot + text + tinted ring. Height ~26px, pill shape, 12px horizontal padding. */
+    .badge {
+        @apply inline-flex items-center gap-1.5 rounded-pill px-3 py-1 text-xs font-medium ring-1 ring-inset;
+    }
+
+    .badge::before {
+        content: '';
+        @apply h-1.5 w-1.5 shrink-0 rounded-full bg-current;
+    }
+
+    .badge-pending {
+        @apply badge bg-warning-light text-warning ring-warning;
+    }
+
+    .badge-validated {
+        @apply badge bg-info-light text-info ring-info;
+    }
+
+    .badge-dispensed {
+        @apply badge bg-success-light text-success ring-success;
+    }
+
+    .badge-cancelled {
+        @apply badge bg-error-light text-error ring-error;
+    }
+
+    .badge-in-stock {
+        @apply badge bg-success-light text-success ring-success;
+    }
+
+    .badge-low-stock {
+        @apply badge bg-warning-light text-warning ring-warning;
+    }
+
+    .badge-out-of-stock {
+        @apply badge bg-error-light text-error ring-error;
+    }
+
+    /* ── Cards & sections ── */
+    .card {
+        @apply rounded-card border border-soil-200 bg-surface;
+        box-shadow: var(--shadow-card);
+    }
+
+    .card-header {
+        @apply flex items-center justify-between gap-3 border-b border-soil-200 px-5 py-4;
+    }
+
+    .card-title {
+        @apply text-[15px] font-semibold tracking-tight text-soil-900;
+    }
+
+    .card-body {
+        @apply px-5 py-5;
+    }
+
+    .section-label {
+        @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-soil-500;
+    }
+
+    /* ── Stats ── */
+    .stat-card {
+        @apply rounded-card border border-soil-200 bg-surface p-5;
+        box-shadow: var(--shadow-card);
+        transition:
+            box-shadow 0.2s var(--ease-matie),
+            transform 0.2s var(--ease-matie);
+    }
+
+    .stat-card:hover {
+        box-shadow: var(--shadow-card-hover);
+        transform: translateY(-2px);
+    }
+
+    .stat-label {
+        @apply text-[13px] font-medium text-soil-500;
+    }
+
+    .stat-value {
+        @apply mt-1.5 text-[26px] font-semibold leading-none tracking-tight text-soil-900 tabular-nums;
+    }
+
+    .stat-foot {
+        @apply mt-2 text-xs text-soil-400;
+    }
+
+    /* ── Tables ── */
+    .table-container {
+        @apply overflow-hidden rounded-card border border-soil-200 bg-surface;
+        box-shadow: var(--shadow-card);
+    }
+
+    .table-container table {
+        @apply min-w-full divide-y divide-soil-200;
+    }
+
+    .table-container thead {
+        @apply bg-surface-secondary;
+    }
+
+    .table-container th {
+        @apply px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-soil-500;
+    }
+
+    .table-container tbody {
+        @apply divide-y divide-soil-200;
+    }
+
+    .table-container td {
+        @apply whitespace-nowrap px-4 py-3.5 text-sm text-soil-700;
+    }
+
+    .table-container tbody tr {
+        transition: background-color 0.15s ease;
+    }
+
+    .table-container tbody tr:hover {
+        @apply bg-accent-50;
+    }
+
+    .table-link {
+        @apply font-medium text-accent-600 transition-colors duration-150 hover:text-accent-700;
+    }
+
+    /* ── Alerts ── */
+    .alert {
+        @apply flex items-start gap-2.5 rounded-control px-4 py-3 text-sm ring-1 ring-inset;
+    }
+
+    .alert-warning {
+        @apply alert bg-warning-light text-warning ring-warning;
+    }
+
+    .alert-error {
+        @apply alert bg-error-light text-error ring-error;
+    }
+
+    .alert-success {
+        @apply alert bg-success-light text-success ring-success;
+    }
+
+    .alert-info {
+        @apply alert bg-info-light text-info ring-info;
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+        @apply flex flex-col items-center justify-center rounded-card border-2 border-dashed border-soil-200 bg-surface px-6 py-14 text-center;
+    }
+
+    .empty-state-title {
+        @apply mt-3 text-sm font-semibold text-soil-800;
+    }
+
+    .empty-state-body {
+        @apply mt-1 max-w-sm text-sm text-soil-500;
+    }
+
+    /* ── Sidebar nav ── */
+    .nav-item {
+        @apply relative flex items-center gap-2.5 rounded-control px-3 py-2 text-sm font-medium text-soil-600 transition-colors duration-150 ease-matie hover:bg-soil-100 hover:text-soil-900;
+    }
+
+    .nav-item-active {
+        @apply bg-accent-50 text-accent-600 hover:bg-accent-50 hover:text-accent-600;
+    }
+
+    /* Left blue indicator line for the active item */
+    .nav-item-active::before {
+        content: '';
+        @apply absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent-500;
+    }
+
+    /* ── Page shell ── */
+    .page-content {
+        @apply px-4 py-6 sm:px-6 lg:px-8;
+    }
+
+    .page-content-narrow {
+        @apply mx-auto w-full max-w-3xl;
+    }
+}

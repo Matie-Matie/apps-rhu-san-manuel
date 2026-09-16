@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # InfinityFree uses htdocs as the document root. Keep Laravel's public/
+    # directory intact and route public requests into it.
+    RewriteRule ^storage/(.*)$ storage/app/public/$1 [L]
+
+    # Do not rewrite requests that already target the public directory.
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
