@@ -25,12 +25,17 @@ exit /b 1
 :check_vendor
 if not exist "vendor\autoload.php" goto first_install
 if not exist "vendor\laravel\framework\src\Illuminate\Foundation\helpers.php" goto vendor_broken
+call php -r "require 'vendor/autoload.php'; exit(function_exists('fake') ? 0 : 1);" >nul 2>nul
+if errorlevel 1 goto vendor_broken
 goto check_env
 
 :vendor_broken
 echo.
-echo  The system files look incomplete - reinstalling them...
+echo  The system files look incomplete - removing and reinstalling them...
+echo  (If this keeps happening, move this folder OUT of OneDrive/Desktop
+echo   syncing - cloud placeholders break the install.)
 echo.
+if exist "vendor" rmdir /s /q "vendor"
 goto first_install
 :first_install
 echo.
@@ -137,10 +142,11 @@ echo DONE > "storage\app\.first-run-done"
 goto start_server
 :db_fail
 echo.
-echo  [ERROR] Could not connect to the database.
-echo  1. Open XAMPP Control Panel
-echo  2. Press Start on Apache and MySQL
-echo  3. Double-click this file again
+echo  [ERROR] Setup did not finish. Read the red text above this message:
+echo  - If it mentions a missing function or a vendor file, just run
+echo    this file again (it reinstalls the system files by itself).
+echo  - If it mentions MySQL or connection refused: open XAMPP Control
+echo    Panel, press Start on Apache and MySQL, then run this again.
 echo  If it still fails, take a photo of this window and send it to Mat.
 echo.
 pause
