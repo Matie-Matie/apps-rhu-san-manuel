@@ -39,8 +39,7 @@ if exist "vendor" rmdir /s /q "vendor"
 goto first_install
 :first_install
 echo.
-echo  First-time setup - installing system files. Please wait...
-echo  (This takes a few minutes and only happens once.)
+echo  System files need repair - trying to fetch them (needs internet)...
 echo.
 where composer >nul 2>nul
 if errorlevel 1 goto no_composer
@@ -52,14 +51,21 @@ if errorlevel 1 goto install_fail
 goto check_env
 :no_composer
 echo.
-echo  [ERROR] Composer was not found. Please contact Mat to finish setup.
+echo  [ERROR] The system files are incomplete and Composer is not
+echo  available to fetch them. Download a fresh ZIP of APPS, extract
+echo  it to a new C:\APPS folder, and run this file again.
+echo  If it still fails, take a photo of this window and send it to Mat.
 echo.
 pause
 exit /b 1
 :install_fail
 echo.
-echo  [ERROR] Setup failed while installing files.
-echo  Take a photo of this window and send it to Mat.
+echo  [ERROR] Could not fetch the system files (this computer may be
+echo  offline - the install needs internet the first time).
+echo  Good news: the APPS download already contains these files.
+echo  Download a fresh ZIP of APPS, extract it to a new C:\APPS
+echo  folder, and run this file again.
+echo  If it still fails, take a photo of this window and send it to Mat.
 echo.
 pause
 exit /b 1
@@ -103,7 +109,7 @@ if exist "public\build\manifest.json" goto check_db
 goto need_build
 :need_build
 echo.
-echo  Building the screen files (one-time step). Please wait...
+echo  Screen files are missing - trying to build them (needs internet)...
 echo.
 where npm >nul 2>nul
 if errorlevel 1 goto no_npm
@@ -114,15 +120,19 @@ if errorlevel 1 goto build_fail
 goto check_db
 :no_npm
 echo.
-echo  [ERROR] The screen files are missing and Node.js is not installed.
-echo  Please contact Mat to finish setup.
+echo  [ERROR] The screen files are missing and Node.js is not available.
+echo  Download a fresh ZIP of APPS (it already contains these files),
+echo  extract it to a new C:\APPS folder, and run this file again.
+echo  If it still fails, take a photo of this window and send it to Mat.
 echo.
 pause
 exit /b 1
 :build_fail
 echo.
-echo  [ERROR] Could not build the screen files.
-echo  Take a photo of this window and send it to Mat.
+echo  [ERROR] Could not build the screen files (this may need internet).
+echo  Download a fresh ZIP of APPS (it already contains these files),
+echo  extract it to a new C:\APPS folder, and run this file again.
+echo  If it still fails, take a photo of this window and send it to Mat.
 echo.
 pause
 exit /b 1

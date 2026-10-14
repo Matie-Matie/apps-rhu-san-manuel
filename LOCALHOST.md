@@ -7,6 +7,8 @@ This build is meant to run on the clinic's own computer (localhost). No online h
 
 **Double-click `start.bat`. That's it.**
 
+The download already contains everything (system files + screens), so no internet, Composer, or Node is needed on the clinic computer — only PHP (via XAMPP).
+
 It checks everything itself (first run installs + prepares the database, which takes a few minutes), then opens http://127.0.0.1:8000 in the browser. Keep the black window open while using the system; press CTRL+C in it to stop.
 
 - If it says it can't reach the database: open **XAMPP Control Panel**, press **Start** on Apache and MySQL, then double-click `start.bat` again.
