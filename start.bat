@@ -24,7 +24,14 @@ pause
 exit /b 1
 :check_vendor
 if not exist "vendor\autoload.php" goto first_install
+if not exist "vendor\laravel\framework\src\Illuminate\Foundation\helpers.php" goto vendor_broken
 goto check_env
+
+:vendor_broken
+echo.
+echo  The system files look incomplete - reinstalling them...
+echo.
+goto first_install
 :first_install
 echo.
 echo  First-time setup - installing system files. Please wait...
@@ -32,7 +39,10 @@ echo  (This takes a few minutes and only happens once.)
 echo.
 where composer >nul 2>nul
 if errorlevel 1 goto no_composer
+set COMPOSER_MEMORY_LIMIT=-1
 call composer install --no-dev --no-interaction
+if errorlevel 1 goto install_fail
+call php -r "require 'vendor/autoload.php'; exit(function_exists('fake') ? 0 : 1);"
 if errorlevel 1 goto install_fail
 goto check_env
 :no_composer
