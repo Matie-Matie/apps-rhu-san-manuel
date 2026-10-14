@@ -9,7 +9,7 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // The two existing login accounts.
+        // Demo login accounts.
         User::factory()->create([
             'name' => 'Dr. Juan Dela Cruz',
             'email' => 'doctor@apps.test',
@@ -22,6 +22,13 @@ class DatabaseSeeder extends Seeder
             'email' => 'pharmacist@apps.test',
             'password' => bcrypt('password'),
             'role' => 'pharmacist',
+        ]);
+
+        User::factory()->create([
+            'name' => 'Ana Reyes (Staff)',
+            'email' => 'staff@apps.test',
+            'password' => bcrypt('password'),
+            'role' => 'staff',
         ]);
 
         // Official San Manuel clinic medicine list (72 real entries

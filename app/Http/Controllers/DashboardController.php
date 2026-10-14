@@ -16,6 +16,11 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
+        // Front-desk staff work out of the patients list (registration + vitals).
+        if ($user->isStaff()) {
+            return redirect()->route('patients.index');
+        }
+
         if ($user->isPharmacist()) {
             return $this->pharmacistDashboard();
         }
@@ -53,29 +58,29 @@ class DashboardController extends Controller
             ->take(10)
             ->get();
 
-        $lowStockItems = MedicineInventory::whereColumn('quantity', '<=', 'reorder_level')
+        $lowStockItems = MedicineInventory::whereHas('medicine', fn ($q) => $q->active())
+            ->whereColumn('quantity', '<=', 'reorder_level')
             ->where('quantity', '>', 0)
             ->with('medicine')
             ->take(10)
             ->get();
 
-        $expiringItems = MedicineInventory::whereNotNull('expiry_date')
+        $expiringItems = MedicineInventory::whereHas('medicine', fn ($q) => $q->active())
+            ->whereNotNull('expiry_date')
             ->where('expiry_date', '<=', now()->addDays(30))
             ->where('expiry_date', '>', now())
             ->with('medicine')
             ->take(10)
             ->get();
 
-        $outOfStock = MedicineInventory::where('quantity', '<=', 0)
+        $outOfStock = MedicineInventory::whereHas('medicine', fn ($q) => $q->active())
+            ->where('quantity', '<=', 0)
             ->with('medicine')
             ->take(10)
             ->get();
 
         $stats = [
             'pending_prescriptions' => Prescription::where('status', 'pending')->count(),
-            'validated_today' => Prescription::where('status', 'validated')
-                ->whereDate('updated_at', today())
-                ->count(),
             'dispensed_today' => DispensingRecord::whereDate('dispensed_at', today())->count(),
             'low_stock_count' => $lowStockItems->count(),
             'expiring_count' => $expiringItems->count(),

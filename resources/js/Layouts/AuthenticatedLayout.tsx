@@ -1,5 +1,5 @@
 import { InertiaLinkProps, Link, router, usePage } from '@inertiajs/react';
-import { createContext, Dispatch, PropsWithChildren, ReactNode, SetStateAction, useContext, useState } from 'react';
+import { createContext, Dispatch, PropsWithChildren, ReactNode, SetStateAction, useContext, useEffect, useRef, useState } from 'react';
 import { Transition } from '@headlessui/react';
 import { motion } from 'framer-motion';
 import Toaster from '@/Components/Toaster';
@@ -28,6 +28,13 @@ const doctorNav: NavSection[] = [
     {
         label: 'Reports',
         items: [{ name: 'Reports', route: 'reports.index', icon: 'bar-chart' }],
+    },
+];
+
+const staffNav: NavSection[] = [
+    {
+        label: 'Front Desk',
+        items: [{ name: 'Patients', route: 'patients.index', icon: 'users' }],
     },
 ];
 
@@ -104,13 +111,50 @@ export default function Authenticated({
 }: PropsWithChildren<{ header?: ReactNode }>) {
     const user = usePage().props.auth.user;
     const role = user?.role || 'doctor';
-    const navSections = role === 'pharmacist' ? pharmacistNav : doctorNav;
+    const navSections = role === 'pharmacist' ? pharmacistNav : role === 'staff' ? staffNav : doctorNav;
     const initial = (user?.name || 'U').charAt(0).toUpperCase();
     // Pathname only (not query string) so pagination / search don't replay the entrance
     const pagePath = usePage().url.split('?')[0];
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [search, setSearch] = useState('');
+    // Search targets whichever list the user is on; anywhere else it searches patients.
+    const searchRoute = pagePath.startsWith('/medicines') ? 'medicines.index'
+        : pagePath.startsWith('/inventory') ? 'inventory.index'
+        : 'patients.index';
+    const urlSearch = new URLSearchParams(usePage().url.split('?')[1] || '').get('search') || '';
+    const [search, setSearch] = useState(urlSearch);
+    const searchRef = useRef<HTMLInputElement>(null);
+    const lastSubmitted = useRef(urlSearch);
+
+    useEffect(() => {
+        setSearch(urlSearch);
+        lastSubmitted.current = urlSearch;
+    }, [pagePath, urlSearch]);
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                searchRef.current?.focus();
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, []);
+
+    const runSearch = (value: string) => {
+        const q = value.trim();
+        if (q === lastSubmitted.current) return;
+        lastSubmitted.current = q;
+        router.get(route(searchRoute), q ? { search: q } : {}, { preserveState: true, preserveScroll: true, replace: true });
+    };
+
+    // Live search while typing (debounced) on list pages.
+    useEffect(() => {
+        if (search.trim() === lastSubmitted.current) return;
+        const t = setTimeout(() => runSearch(search), 350);
+        return () => clearTimeout(t);
+    }, [search]);
 
     const handleBack = () => {
         if (window.history.length > 1) {
@@ -121,10 +165,7 @@ export default function Authenticated({
     };
 
     const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            const q = search.trim();
-            router.visit(route('patients.index', q ? { search: q } : {}));
-        }
+        if (e.key === 'Enter') runSearch(search);
     };
 
     return (
@@ -167,7 +208,7 @@ export default function Authenticated({
                             </svg>
                         </div>
                         <div className="min-w-0 leading-tight">
-                            <p className="truncate text-[13px] font-semibold text-soil-900">RHU Pharmacy Clinic</p>
+                            <p className="truncate text-[13px] font-semibold text-soil-900">Rural Health Unit</p>
                             <p className="truncate text-[11px] text-soil-500">San Manuel, Isabela</p>
                         </div>
                     </div>
@@ -279,10 +320,11 @@ export default function Authenticated({
                             </svg>
                             <input
                                 type="text"
+                                ref={searchRef}
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 onKeyDown={handleSearchKeyDown}
-                                placeholder="Search here..."
+                                placeholder={searchRoute === 'medicines.index' ? 'Search medicines...' : searchRoute === 'inventory.index' ? 'Search inventory...' : 'Search patients...'}
                                 className="h-9 w-60 rounded-[10px] border border-soil-200 bg-surface pl-9 pr-12 text-sm text-soil-900 placeholder:text-soil-400 transition-all duration-200 ease-matie focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-200 lg:w-72"
                             />
                             <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md border border-soil-200 bg-soil-100 px-1.5 py-0.5 text-[11px] font-medium text-soil-500">

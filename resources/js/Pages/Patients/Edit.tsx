@@ -3,6 +3,8 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
+import AddressSelect from '@/Components/AddressSelect';
+import { ageFromDob, MIN_DOB, todayISO } from '@/lib/patient';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
@@ -17,7 +19,7 @@ interface Patient {
 }
 
 export default function PatientsEdit({ patient }: { patient: Patient }) {
-    const { data, setData, put, processing, errors } = useForm({
+    const { data, setData, put, processing, errors, setError, clearErrors } = useForm({
         first_name: patient.first_name,
         last_name: patient.last_name,
         date_of_birth: patient.date_of_birth || '',
@@ -28,6 +30,10 @@ export default function PatientsEdit({ patient }: { patient: Patient }) {
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+        if (data.date_of_birth && data.date_of_birth > todayISO()) {
+            setError('date_of_birth', 'Date of birth cannot be in the future.');
+            return;
+        }
         put(route('patients.update', patient.id));
     };
 
@@ -39,6 +45,9 @@ export default function PatientsEdit({ patient }: { patient: Patient }) {
                     <div className="card">
                         <div className="card-body">
                             <form onSubmit={submit} className="space-y-5">
+                                <div>
+                                    <h4 className="text-sm font-semibold text-soil-800">Personal Information</h4>
+                                </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <InputLabel htmlFor="first_name" value="First Name" />
@@ -54,7 +63,21 @@ export default function PatientsEdit({ patient }: { patient: Patient }) {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <InputLabel htmlFor="date_of_birth" value="Date of Birth" />
-                                        <TextInput id="date_of_birth" type="date" value={data.date_of_birth} onChange={(e) => setData('date_of_birth', e.target.value)} className="mt-1.5 block w-full" />
+                                        <TextInput
+                                            id="date_of_birth"
+                                            type="date"
+                                            min={MIN_DOB}
+                                            max={todayISO()}
+                                            value={data.date_of_birth}
+                                            onChange={(e) => {
+                                                clearErrors('date_of_birth');
+                                                setData('date_of_birth', e.target.value);
+                                            }}
+                                            className="mt-1.5 block w-full"
+                                        />
+                                        {ageFromDob(data.date_of_birth) !== null && (
+                                            <p className="mt-1 text-xs text-soil-500">Age: {ageFromDob(data.date_of_birth)}</p>
+                                        )}
                                         <InputError message={errors.date_of_birth} className="mt-2" />
                                     </div>
                                     <div>
@@ -72,11 +95,7 @@ export default function PatientsEdit({ patient }: { patient: Patient }) {
                                     <TextInput id="contact_number" value={data.contact_number} onChange={(e) => setData('contact_number', e.target.value)} className="mt-1.5 block w-full" />
                                     <InputError message={errors.contact_number} className="mt-2" />
                                 </div>
-                                <div>
-                                    <InputLabel htmlFor="address" value="Address" />
-                                    <textarea id="address" value={data.address} onChange={(e) => setData('address', e.target.value)} rows={2} className="input-field mt-1.5" />
-                                    <InputError message={errors.address} className="mt-2" />
-                                </div>
+                                <AddressSelect value={data.address} onChange={(v) => setData('address', v)} error={errors.address} />
                                 <div className="flex justify-end gap-3">
                                     <Link href={route('patients.index')} className="btn btn-secondary">Cancel</Link>
                                     <PrimaryButton disabled={processing}>Update Patient</PrimaryButton>

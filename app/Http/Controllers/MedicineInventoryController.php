@@ -19,18 +19,39 @@ class MedicineInventoryController extends Controller
         $perPage = (int) $request->get('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50], true) ? $perPage : 10;
 
+        // Dashboard deep-links: ?filter=low_stock | expiring_soon
+        $filter = $request->get('filter');
+        $filter = in_array($filter, ['low_stock', 'expiring_soon'], true) ? $filter : null;
+
         $inventories = MedicineInventory::with('medicine')
+            ->whereHas('medicine', fn ($q) => $q->active())
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $search = trim($request->input('search'));
+                $query->where(function ($q) use ($search) {
+                    $q->where('batch_number', 'like', "%{$search}%")
+                        ->orWhereHas('medicine', function ($m) use ($search) {
+                            $m->where('generic_name', 'like', "%{$search}%")
+                                ->orWhere('brand_name', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->when($filter === 'low_stock', fn ($query) => $query->whereColumn('quantity', '<=', 'reorder_level'))
+            ->when($filter === 'expiring_soon', fn ($query) => $query
+                ->whereNotNull('expiry_date')
+                ->where('expiry_date', '<=', now()->addDays(30))
+                ->where('expiry_date', '>', now()))
             ->orderBy('expiry_date')
             ->paginate($perPage)
             ->withQueryString();
 
-        $lowStock = Medicine::whereHas('inventories', function ($q) {
+        $lowStock = Medicine::active()->whereHas('inventories', function ($q) {
             $q->whereColumn('quantity', '<=', 'reorder_level');
         })->withSum('inventories as total_stock', 'quantity')->get();
 
         return Inertia::render('Inventory/Index', [
             'inventories' => $inventories,
             'lowStock' => $lowStock,
+            'filter' => $filter,
         ]);
     }
 

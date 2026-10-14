@@ -8,6 +8,7 @@ use App\Models\Patient;
 use App\Models\Medicine;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class PrescriptionController extends Controller
@@ -41,9 +42,9 @@ class PrescriptionController extends Controller
 
     public function create()
     {
-        $patients = Patient::orderBy('last_name')->get();
+        $patients = Patient::orderByDesc('created_at')->orderByDesc('id')->get();
 
-        $medicines = Medicine::withSum('inventories as total_stock', 'quantity')
+        $medicines = Medicine::active()->withSum('inventories as total_stock', 'quantity')
             ->get()
             ->map(function ($medicine) {
                 $stock = $medicine->total_stock ?? 0;
@@ -51,9 +52,30 @@ class PrescriptionController extends Controller
                 return $medicine;
             });
 
+        $used = Prescription::whereNotNull('diagnosis')
+            ->where('diagnosis', '!=', '')
+            ->selectRaw('diagnosis, COUNT(*) as uses')
+            ->groupBy('diagnosis')
+            ->orderByDesc('uses')
+            ->limit(50)
+            ->pluck('diagnosis');
+
+        $diagnoses = collect(config('prescribing.common_diagnoses'))
+            ->merge($used)
+            ->unique(fn ($d) => mb_strtolower(trim($d)))
+            ->values();
+
         return Inertia::render('Prescriptions/Create', [
             'patients' => $patients,
             'medicines' => $medicines,
+            'diagnoses' => $diagnoses,
+            'options' => [
+                'dosages' => config('prescribing.dosages'),
+                'frequencies' => config('prescribing.frequencies'),
+                'durations' => config('prescribing.durations'),
+                'quantities' => config('prescribing.quantities'),
+                'units' => config('prescribing.units'),
+            ],
         ]);
     }
 
@@ -65,10 +87,11 @@ class PrescriptionController extends Controller
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.medicine_id' => 'required|exists:medicines,id',
-            'items.*.dosage' => 'required|string',
-            'items.*.frequency' => 'required|string',
-            'items.*.duration' => 'required|string',
-            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.dosage' => ['required', Rule::in(config('prescribing.dosages'))],
+            'items.*.frequency' => ['required', Rule::in(config('prescribing.frequencies'))],
+            'items.*.duration' => ['required', Rule::in(config('prescribing.durations'))],
+            'items.*.quantity' => ['required', 'integer', Rule::in(config('prescribing.quantities'))],
+            'items.*.unit' => ['required', Rule::in(config('prescribing.units'))],
             'items.*.instructions' => 'nullable|string',
         ]);
 
@@ -89,9 +112,10 @@ class PrescriptionController extends Controller
             'user_id' => $request->user()->id,
             'action' => 'create_prescription',
             'description' => "Created prescription {$prescription->prescription_number}",
+            'prescription_id' => $prescription->id,
         ]);
 
-        return redirect()->route('prescriptions.index')
+        return redirect()->route('prescriptions.print', $prescription)
             ->with('success', 'Prescription created successfully.');
     }
 
@@ -104,10 +128,19 @@ class PrescriptionController extends Controller
         ]);
     }
 
+    public function print(Prescription $prescription)
+    {
+        $prescription->load(['patient', 'doctor', 'items.medicine']);
+
+        return Inertia::render('Prescriptions/Print', [
+            'prescription' => $prescription,
+        ]);
+    }
+
     public function updateStatus(Request $request, Prescription $prescription)
     {
         $validated = $request->validate([
-            'status' => 'required|in:pending,validated,dispensed,cancelled',
+            'status' => 'required|in:pending,dispensed,cancelled',
             'notes' => 'nullable|string',
         ]);
 
@@ -124,9 +157,11 @@ class PrescriptionController extends Controller
             abort(403, 'Only pharmacists can reopen prescriptions.');
         }
 
-        // Prevent status regression (e.g., dispensed → validated)
+        // V2 flow: the doctor's signature already validates, so pharmacists
+        // dispense straight from pending (no separate validate step).
+        // Legacy 'validated' rows are still dispensable.
         $allowedTransitions = [
-            'pending'   => ['validated', 'cancelled'],
+            'pending'   => ['dispensed', 'cancelled'],
             'validated' => ['dispensed', 'cancelled'],
             'dispensed' => [],
             'cancelled' => ['pending'],
@@ -137,9 +172,9 @@ class PrescriptionController extends Controller
             return redirect()->back()->with('error', "Cannot change status from '{$current}' to '{$validated['status']}'.");
         }
 
-        // Only pharmacists can validate and dispense
-        if (in_array($validated['status'], ['validated', 'dispensed']) && !$request->user()->isPharmacist()) {
-            abort(403, 'Only pharmacists can validate or dispense prescriptions.');
+        // Only pharmacists can dispense
+        if ($validated['status'] === 'dispensed' && !$request->user()->isPharmacist()) {
+            abort(403, 'Only pharmacists can dispense prescriptions.');
         }
 
         $prescription->update($validated);
@@ -148,6 +183,7 @@ class PrescriptionController extends Controller
             'user_id' => $request->user()->id,
             'action' => "{$validated['status']}_prescription",
             'description' => "Prescription {$prescription->prescription_number} {$validated['status']}",
+            'prescription_id' => $prescription->id,
         ]);
 
         return redirect()->back()

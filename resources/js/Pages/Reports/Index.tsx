@@ -54,25 +54,33 @@ const IconCalendar = ({ className }: { className?: string }) => (
 
 // ─── Page ───
 
-export default function ReportsIndex({ filters, stats, topMedicines, dailyData, dispensedDailyData }: any) {
-    const [startDate, setStartDate] = useState(filters.start_date);
-    const [endDate, setEndDate] = useState(filters.end_date);
+const PERIODS: { key: string; label: string }[] = [
+    { key: 'daily', label: 'Daily' },
+    { key: 'weekly', label: 'Weekly' },
+    { key: 'monthly', label: 'Monthly' },
+    { key: 'quarterly', label: 'Quarterly' },
+    { key: 'annual', label: 'Annual' },
+    { key: 'custom', label: 'Custom' },
+];
 
-    const applyFilter = () => {
-        router.get(route('reports.index'), { start_date: startDate, end_date: endDate });
-    };
+export default function ReportsIndex({ period, range, report, dailyData, dispensedDailyData }: any) {
+    const [startDate, setStartDate] = useState(range.start_date);
+    const [endDate, setEndDate] = useState(range.end_date);
 
-    const applyPreset = (mode: 'week' | 'month' | 'year') => {
-        const end = new Date();
-        const start = new Date();
-        if (mode === 'week') start.setDate(end.getDate() - 6);
-        if (mode === 'month') start.setDate(1);
-        if (mode === 'year') start.setMonth(end.getMonth() - 11, 1);
-        setStartDate(toISODate(start));
-        setEndDate(toISODate(end));
-    };
+    const stats = report;
+    const topMedicines = report.top_medicines;
+
+    const go = (params: Record<string, string>) => router.get(route('reports.index'), params, { preserveScroll: true });
+
+    const printParams = () =>
+        period === 'custom'
+            ? { period, start_date: range.start_date, end_date: range.end_date }
+            : { period, date: range.anchor };
+
+    const openPrint = () => window.open(route('reports.print', printParams()), '_blank');
 
     const maxDispensed = Math.max(...topMedicines.map((m: any) => Number(m.dispensed_quantity) || 0), 1);
+    const maxDiagnosis = Math.max(...report.top_diagnoses.map((d: any) => Number(d.count) || 0), 1);
 
     // Build a continuous 30-day series (today inclusive), filling zero days.
     const byDay = new Map<string, number>(dailyData.map((d: any) => [String(d.day), Number(d.total)]));
@@ -87,53 +95,69 @@ export default function ReportsIndex({ filters, stats, topMedicines, dailyData, 
     const maxDaily = Math.max(...days.flatMap((d) => [d.prescribed, d.dispensed]), 1);
     const hasDailyData = days.some((d) => d.prescribed > 0 || d.dispensed > 0);
 
+    const navBtn = 'inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-soil-200 text-soil-600 transition-colors hover:bg-soil-100 disabled:cursor-not-allowed disabled:opacity-40';
+
     return (
         <AuthenticatedLayout header="Reports">
             <Head title="Reports" />
             <div className="page-content">
-                {/* Filters */}
+                {/* Period controls */}
                 <FadeIn>
                     <div className="mb-6 card">
-                        <div className="card-body">
-                            <div className="flex flex-wrap items-end justify-between gap-4">
+                        <div className="card-body space-y-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div className="flex flex-wrap gap-1.5">
+                                    {PERIODS.map((p) => (
+                                        <button
+                                            key={p.key}
+                                            onClick={() => (p.key === 'custom' ? go({ period: 'custom', start_date: range.start_date, end_date: range.end_date }) : go({ period: p.key, date: range.anchor }))}
+                                            className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors duration-150 ${
+                                                period === p.key
+                                                    ? 'border-accent-500 bg-accent-500 text-white'
+                                                    : 'border-soil-200 text-soil-600 hover:border-accent-300 hover:bg-accent-50 hover:text-accent-700'
+                                            }`}
+                                        >
+                                            {p.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <button onClick={openPrint} className="btn btn-secondary btn-sm">
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+                                    </svg>
+                                    Print report
+                                </button>
+                            </div>
+
+                            {period === 'custom' ? (
                                 <div className="flex flex-wrap items-end gap-4">
                                     <div>
                                         <label className="input-label">From</label>
-                                        <input
-                                            type="date"
-                                            value={startDate}
-                                            onChange={(e) => setStartDate(e.target.value)}
-                                            className="input-field mt-1"
-                                        />
+                                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input-field mt-1" />
                                     </div>
                                     <div>
                                         <label className="input-label">To</label>
-                                        <input
-                                            type="date"
-                                            value={endDate}
-                                            onChange={(e) => setEndDate(e.target.value)}
-                                            className="input-field mt-1"
-                                        />
+                                        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="input-field mt-1" />
                                     </div>
-                                    <button onClick={applyFilter} className="btn btn-primary">
+                                    <button onClick={() => go({ period: 'custom', start_date: startDate, end_date: endDate })} className="btn btn-primary">
                                         <IconCalendar className="h-4 w-4" />
                                         Apply
                                     </button>
                                 </div>
-
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-xs font-medium text-soil-400">Quick range:</span>
-                                    <button onClick={() => applyPreset('week')} className="rounded-full border border-soil-200 px-3 py-1.5 text-xs font-medium text-soil-600 transition-colors duration-150 hover:border-accent-300 hover:bg-accent-50 hover:text-accent-700">
-                                        Last 7 days
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <button className={navBtn} aria-label="Previous period" onClick={() => go({ period, date: range.prev })}>
+                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
                                     </button>
-                                    <button onClick={() => applyPreset('month')} className="rounded-full border border-soil-200 px-3 py-1.5 text-xs font-medium text-soil-600 transition-colors duration-150 hover:border-accent-300 hover:bg-accent-50 hover:text-accent-700">
-                                        This month
+                                    <div className="min-w-[200px] text-center text-sm font-semibold text-soil-900">{range.label}</div>
+                                    <button className={navBtn} aria-label="Next period" disabled={!range.next} onClick={() => range.next && go({ period, date: range.next })}>
+                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                                     </button>
-                                    <button onClick={() => applyPreset('year')} className="rounded-full border border-soil-200 px-3 py-1.5 text-xs font-medium text-soil-600 transition-colors duration-150 hover:border-accent-300 hover:bg-accent-50 hover:text-accent-700">
-                                        Last 12 months
+                                    <button onClick={() => go({ period })} className="ml-2 rounded-full border border-soil-200 px-3 py-1.5 text-xs font-medium text-soil-600 hover:bg-soil-100">
+                                        Today
                                     </button>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </FadeIn>
@@ -184,6 +208,39 @@ export default function ReportsIndex({ filters, stats, topMedicines, dailyData, 
                         </div>
                     </motion.div>
                 </div>
+
+                {/* Top Diagnoses */}
+                <FadeIn delay={0.12}>
+                    <div className="card mt-6">
+                        <div className="card-header">
+                            <h2 className="card-title">Top Diagnoses</h2>
+                            <span className="text-xs font-medium text-soil-400">{range.label}</span>
+                        </div>
+                        <div className="p-5">
+                            {report.top_diagnoses.length > 0 ? (
+                                <div className="space-y-3.5">
+                                    {report.top_diagnoses.map((d: any, i: number) => (
+                                        <div key={d.diagnosis} className="flex items-center gap-3">
+                                            <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-[8px] text-xs font-semibold ${i === 0 ? 'bg-accent-500 text-white' : i < 3 ? 'bg-accent-100 text-accent-700' : 'bg-soil-100 text-soil-500'}`}>
+                                                {i + 1}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="truncate text-sm font-medium text-soil-900">{d.diagnosis}</div>
+                                                <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-soil-100">
+                                                    <div className={`h-full rounded-full ${i === 0 ? 'bg-accent-500' : 'bg-accent-300'}`} style={{ width: `${Math.round((d.count / maxDiagnosis) * 100)}%` }} />
+                                                </div>
+                                            </div>
+                                            <span className="shrink-0 text-sm font-semibold tabular-nums text-soil-900">{d.count}</span>
+                                            <span className="w-12 shrink-0 text-right text-xs tabular-nums text-soil-400">{d.percent}%</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="px-4 py-8 text-center text-sm text-soil-500">No diagnoses recorded in this period.</div>
+                            )}
+                        </div>
+                    </div>
+                </FadeIn>
 
                 <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
                     {/* Top Medicines */}
@@ -262,7 +319,7 @@ export default function ReportsIndex({ filters, stats, topMedicines, dailyData, 
                         <div className="card h-full">
                             <div className="card-header">
                                 <h2 className="card-title">Daily Trend</h2>
-                                <span className="text-xs font-medium text-soil-400">Last 30 days</span>
+                                <span className="text-xs font-medium text-soil-400">Last 30 days (all periods)</span>
                             </div>
                             <div className="p-5">
                                 <div className="mb-3 flex items-center justify-end gap-4">

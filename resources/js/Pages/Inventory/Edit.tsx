@@ -20,7 +20,8 @@ export default function InventoryEdit({ inventory }: { inventory: InventoryItem 
         batch_number: inventory.batch_number || '',
         quantity: String(inventory.quantity),
         unit_price: String(inventory.unit_price),
-        expiry_date: inventory.expiry_date || '',
+        expiry_date: inventory.expiry_date ? inventory.expiry_date.slice(0, 10) : '',
+        reorder_level: String(inventory.reorder_level ?? 10),
     });
 
     const submit: FormEventHandler = (e) => {
@@ -56,6 +57,11 @@ export default function InventoryEdit({ inventory }: { inventory: InventoryItem 
                                         <input id="unit_price" type="number" step="0.01" value={data.unit_price} onChange={(e) => setData('unit_price', e.target.value)} className="input-field mt-1.5" required />
                                         <InputError message={errors.unit_price} className="mt-2" />
                                     </div>
+                                </div>
+                                <div>
+                                    <InputLabel htmlFor="reorder_level" value="Reorder Level" />
+                                    <input id="reorder_level" type="number" min="0" value={data.reorder_level} onChange={(e) => setData('reorder_level', e.target.value)} className="input-field mt-1.5" required />
+                                    <InputError message={errors.reorder_level} className="mt-2" />
                                 </div>
                                 <div>
                                     <InputLabel htmlFor="expiry_date" value="Expiry Date" />

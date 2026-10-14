@@ -373,15 +373,7 @@ function PharmacistDashboard({ stats }: any) {
             href: route('prescriptions.index', { status: 'pending' }),
             icon: IconDocument,
             tint: 'warning' as const,
-            foot: <div className="stat-foot mt-3">Waiting to be validated</div>,
-        },
-        {
-            label: 'Validated Today',
-            value: stats.validated_today,
-            href: null,
-            icon: IconCheckCircle,
-            tint: 'accent' as const,
-            foot: <div className="stat-foot mt-3">Prescriptions verified</div>,
+            foot: <div className="stat-foot mt-3">Waiting to be dispensed</div>,
         },
         {
             label: 'Dispensed Today',
@@ -394,7 +386,7 @@ function PharmacistDashboard({ stats }: any) {
         {
             label: 'Low Stock',
             value: stats.low_stock_count,
-            href: route('inventory.index'),
+            href: route('inventory.index', { filter: 'low_stock' }),
             icon: IconAlert,
             tint: 'error' as const,
             foot: (
@@ -406,7 +398,7 @@ function PharmacistDashboard({ stats }: any) {
         {
             label: 'Expiring Soon',
             value: stats.expiring_count,
-            href: route('inventory.index'),
+            href: route('inventory.index', { filter: 'expiring_soon' }),
             icon: IconClock,
             tint: 'info' as const,
             foot: <div className="stat-foot mt-3">Within the next 30 days</div>,
@@ -418,7 +410,7 @@ function PharmacistDashboard({ stats }: any) {
             <Greeting subtitle="Here is what needs your attention at the pharmacy today." />
 
             {/* Stats grid */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {cards.map((card, i) => (
                     <StatCard key={card.label} {...card} delay={0.05 * i} />
                 ))}
@@ -488,7 +480,7 @@ function PharmacistDashboard({ stats }: any) {
                             <div className="card-header">
                                 <h2 className="card-title">Low Stock Items</h2>
                                 <Link
-                                    href={route('inventory.index')}
+                                    href={route('inventory.index', { filter: 'low_stock' })}
                                     className="text-sm font-medium text-accent-600 transition-colors duration-150 hover:text-accent-700"
                                 >
                                     Manage
@@ -543,6 +535,12 @@ function PharmacistDashboard({ stats }: any) {
                             <div className="card">
                                 <div className="card-header">
                                     <h2 className="card-title">Expiring Within 30 Days</h2>
+                                    <Link
+                                        href={route('inventory.index', { filter: 'expiring_soon' })}
+                                        className="text-sm font-medium text-accent-600 transition-colors duration-150 hover:text-accent-700"
+                                    >
+                                        Manage
+                                    </Link>
                                 </div>
                                 <div className="p-3">
                                     {stats.expiring_list.map((item: any) => (

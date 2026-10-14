@@ -1,7 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Pagination, { PaginationLink } from '@/Components/Pagination';
 import FadeIn from '@/Components/FadeIn';
-import { Head } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 
 interface ActivityLog {
@@ -10,6 +10,14 @@ interface ActivityLog {
     action: string;
     description: string | null;
     created_at: string;
+    received: {
+        prescription_id: number;
+        prescription_number: string;
+        patient: string | null;
+        dispensed_at: string;
+        pharmacist: string | null;
+        items: { medicine: string; strength: string | null; quantity: number }[];
+    } | null;
 }
 
 interface LogsPaginator {
@@ -37,6 +45,8 @@ const ACTION_META: Record<string, { label: string; dot: string; chip: string }> 
     delete_medicine: { label: 'Delete', dot: 'bg-red-500', chip: 'bg-red-100 text-red-700' },
     add_stock: { label: 'Stock', dot: 'bg-sky-500', chip: 'bg-sky-100 text-sky-700' },
     update_inventory: { label: 'Inventory', dot: 'bg-sky-500', chip: 'bg-sky-100 text-sky-700' },
+    adjust_stock: { label: 'Stock', dot: 'bg-sky-500', chip: 'bg-sky-100 text-sky-700' },
+    record_vitals: { label: 'Vitals', dot: 'bg-accent-500', chip: 'bg-accent-100 text-accent-700' },
 };
 
 const FALLBACK_META = { label: 'Activity', dot: 'bg-soil-400', chip: 'bg-soil-100 text-soil-600' };
@@ -77,7 +87,10 @@ function timeAgo(iso: string) {
 
 // ─── Page ───
 
-export default function ActivityLogsIndex({ logs }: { logs: LogsPaginator }) {
+export default function ActivityLogsIndex({ logs, type }: { logs: LogsPaginator; type: 'all' | 'dispensed' }) {
+    const setType = (t: 'all' | 'dispensed') =>
+        router.get(route('activity-logs.index'), t === 'all' ? {} : { type: t }, { preserveScroll: true });
+
     // Group entries by local day, preserving latest-first order.
     const groups: { key: string; entries: ActivityLog[] }[] = [];
     logs.data.forEach((log) => {
@@ -98,9 +111,24 @@ export default function ActivityLogsIndex({ logs }: { logs: LogsPaginator }) {
                     <div className="card overflow-hidden">
                         <div className="card-header">
                             <h2 className="text-base font-bold tracking-tight text-soil-900">Activity Feed</h2>
-                            <span className="rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold tabular-nums text-accent-700">
-                                {logs.total} {logs.total === 1 ? 'entry' : 'entries'}
-                            </span>
+                            <div className="flex items-center gap-3">
+                                <div className="flex gap-1 rounded-full bg-soil-100 p-1">
+                                    {([['all', 'All activity'], ['dispensed', 'Patient pick-ups']] as const).map(([key, label]) => (
+                                        <button
+                                            key={key}
+                                            onClick={() => setType(key)}
+                                            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                                                type === key ? 'bg-surface text-soil-900 shadow-sm' : 'text-soil-500 hover:text-soil-800'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <span className="rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold tabular-nums text-accent-700">
+                                    {logs.total} {logs.total === 1 ? 'entry' : 'entries'}
+                                </span>
+                            </div>
                         </div>
 
                         {groups.length > 0 ? (
@@ -160,6 +188,31 @@ export default function ActivityLogsIndex({ logs }: { logs: LogsPaginator }) {
                                                                     {timeAgo(log.created_at)}
                                                                 </time>
                                                             </div>
+
+                                                            {log.received && (
+                                                                <div className="mt-2.5 rounded-control border border-success/30 bg-success-light/40 px-3 py-2.5">
+                                                                    <p className="text-sm text-soil-900">
+                                                                        <span className="font-semibold">{log.received.patient ?? 'Patient'}</span> received the medicine
+                                                                        <span className="text-soil-500"> · {new Date(log.received.dispensed_at).toLocaleString()}</span>
+                                                                    </p>
+                                                                    <ul className="mt-1.5 space-y-0.5">
+                                                                        {log.received.items.map((item, idx) => (
+                                                                            <li key={idx} className="text-xs text-soil-700">
+                                                                                <span className="font-medium text-soil-900">
+                                                                                    {item.medicine}{item.strength ? ` ${item.strength}` : ''}
+                                                                                </span>
+                                                                                {' '}&times; {item.quantity}
+                                                                            </li>
+                                                                        ))}
+                                                                    </ul>
+                                                                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 text-xs text-soil-500">
+                                                                        {log.received.pharmacist && <span>Dispensed by {log.received.pharmacist}</span>}
+                                                                        <Link href={route('prescriptions.show', log.received.prescription_id)} className="font-medium text-accent-600 hover:underline">
+                                                                            {log.received.prescription_number}
+                                                                        </Link>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </motion.li>
                                                 );
@@ -179,8 +232,8 @@ export default function ActivityLogsIndex({ logs }: { logs: LogsPaginator }) {
                                         />
                                     </svg>
                                 </div>
-                                <div className="text-sm font-medium text-soil-900">No activity yet</div>
-                                <div className="text-xs text-soil-500">Actions across the system will appear here</div>
+                                <div className="text-sm font-medium text-soil-900">{type === 'dispensed' ? 'No pick-ups yet' : 'No activity yet'}</div>
+                                <div className="text-xs text-soil-500">{type === 'dispensed' ? 'Medicines received by patients will appear here' : 'Actions across the system will appear here'}</div>
                             </div>
                         )}
 

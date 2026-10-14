@@ -4,7 +4,7 @@ import FadeIn from '@/Components/FadeIn';
 import ConfirmModal from '@/Components/ConfirmModal';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Medicine {
     id: number;
@@ -33,13 +33,79 @@ function StockBadge({ stock }: { stock: number | null }) {
     return <span className="badge badge-in-stock tabular-nums">{qty} in stock</span>;
 }
 
-export default function MedicinesIndex({ medicines }: { medicines: MedicinesPaginator }) {
+export default function MedicinesIndex({ medicines, showingArchived, archivedCount }: { medicines: MedicinesPaginator; showingArchived: boolean; archivedCount: number }) {
     const { auth } = usePage().props as any;
     const role = auth?.user?.role;
     const isDoctor = role === 'doctor';
 
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [deleting, setDeleting] = useState(false);
+
+    const [archiveId, setArchiveId] = useState<number | null>(null);
+    const [archiving, setArchiving] = useState(false);
+
+    const confirmArchive = () => {
+        if (archiveId === null) return;
+        setArchiving(true);
+        router.post(route('medicines.archive', archiveId), {}, {
+            onFinish: () => {
+                setArchiving(false);
+                setArchiveId(null);
+            },
+        });
+    };
+
+    const restoreMedicine = (id: number) => {
+        router.post(route('medicines.restore', id), {}, { preserveScroll: true });
+    };
+
+    // Staged stock changes (medicine id -> units to add/remove); nothing is saved until "Save changes".
+    const [deltas, setDeltas] = useState<Record<number, number>>({});
+    const [saving, setSaving] = useState(false);
+    const pending = Object.keys(deltas).length;
+    // Raw text while typing, so "-" or "" isn't collapsed to 0 mid-edit.
+    const [drafts, setDrafts] = useState<Record<number, string>>({});
+    const clearDraft = (id: number) => setDrafts((d) => { const c = { ...d }; delete c[id]; return c; });
+
+    const setDelta = (m: Medicine, value: number): number => {
+        const next = Math.max(-(m.total_stock ?? 0), Math.min(100000, Math.trunc(value) || 0));
+        setDeltas((prev) => {
+            const copy = { ...prev };
+            if (next === 0) delete copy[m.id];
+            else copy[m.id] = next;
+            return copy;
+        });
+        return next;
+    };
+
+    const saveStock = () => {
+        setSaving(true);
+        router.post(
+            route('medicines.adjust-stock'),
+            { adjustments: Object.entries(deltas).map(([id, delta]) => ({ medicine_id: Number(id), delta })) },
+            {
+                preserveScroll: true,
+                onSuccess: () => setDeltas({}),
+                onFinish: () => setSaving(false),
+            }
+        );
+    };
+
+    useEffect(() => {
+        if (pending === 0) return;
+        const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+        window.addEventListener('beforeunload', warn);
+        // Inertia visits (pagination, sidebar, other rows' links) remount this page and drop staged edits.
+        const stop = router.on('before', (event) => {
+            const visit = event.detail.visit;
+            if (visit.method !== 'get' || visit.preserveState === true) return;
+            if (!window.confirm('You have unsaved stock changes. Leave without saving?')) event.preventDefault();
+        });
+        return () => {
+            window.removeEventListener('beforeunload', warn);
+            stop();
+        };
+    }, [pending]);
 
     const confirmDelete = () => {
         if (deleteId === null) return;
@@ -56,12 +122,22 @@ export default function MedicinesIndex({ medicines }: { medicines: MedicinesPagi
                 <FadeIn y={18} duration={0.45}>
                     <div className="card overflow-hidden">
                         <div className="card-header">
-                            <h2 className="text-base font-bold tracking-tight text-soil-900">Medicine Catalog</h2>
+                            <h2 className="text-base font-bold tracking-tight text-soil-900">
+                                {showingArchived ? 'Archived Medicines' : 'Medicine Catalog'}
+                            </h2>
                             <div className="flex items-center gap-3">
                                 <span className="rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold tabular-nums text-accent-700">
                                     {medicines.total} {medicines.total === 1 ? 'medicine' : 'medicines'}
                                 </span>
                                 {!isDoctor && (
+                                    <Link
+                                        href={showingArchived ? route('medicines.index') : route('medicines.index', { archived: 1 })}
+                                        className="btn btn-secondary btn-sm"
+                                    >
+                                        {showingArchived ? 'Back to catalog' : `Archive (${archivedCount})`}
+                                    </Link>
+                                )}
+                                {!isDoctor && !showingArchived && (
                                     <Link href={route('medicines.create')} className="btn btn-primary btn-sm">
                                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -114,10 +190,73 @@ export default function MedicinesIndex({ medicines }: { medicines: MedicinesPagi
                                                 )}
                                             </td>
                                             <td className="text-soil-700">{m.strength || '-'}</td>
-                                            <td><StockBadge stock={m.total_stock} /></td>
+                                            <td>
+                                                <StockBadge stock={(m.total_stock ?? 0) + (deltas[m.id] ?? 0)} />
+                                                {deltas[m.id] ? (
+                                                    <div className="mt-1 text-[11px] tabular-nums text-soil-400">
+                                                        was {m.total_stock ?? 0}
+                                                    </div>
+                                                ) : null}
+                                            </td>
                                             {!isDoctor && (
                                                 <td>
+                                                    {showingArchived ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => restoreMedicine(m.id)}
+                                                            title="Restore medicine"
+                                                            className="btn btn-secondary btn-sm"
+                                                        >
+                                                            Restore
+                                                        </button>
+                                                    ) : (
                                                     <div className="flex items-center justify-start gap-1.5">
+                                                        <div
+                                                            className={`mr-1 flex items-center overflow-hidden rounded-[10px] border ${
+                                                                deltas[m.id] ? 'border-accent-400 bg-accent-50' : 'border-soil-200 bg-surface'
+                                                            }`}
+                                                        >
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => { clearDraft(m.id); setDelta(m, (deltas[m.id] ?? 0) - 1); }}
+                                                                disabled={(m.total_stock ?? 0) + (deltas[m.id] ?? 0) <= 0}
+                                                                aria-label={`Remove 1 from ${m.generic_name}`}
+                                                                title="Remove 1"
+                                                                className="flex h-8 w-8 items-center justify-center text-lg leading-none text-soil-500 transition-colors hover:bg-soil-100 hover:text-error disabled:cursor-not-allowed disabled:opacity-30"
+                                                            >
+                                                                &minus;
+                                                            </button>
+                                                            <input
+                                                                type="text"
+                                                                inputMode="numeric"
+                                                                value={drafts[m.id] ?? String(deltas[m.id] ?? 0)}
+                                                                onChange={(e) => {
+                                                                    const raw = e.target.value;
+                                                                    if (!/^-?\d*$/.test(raw)) return;
+                                                                    let shown = raw;
+                                                                    if (/^-?\d+$/.test(raw)) {
+                                                                        const parsed = parseInt(raw, 10);
+                                                                        const applied = setDelta(m, parsed);
+                                                                        if (applied !== parsed) shown = String(applied);
+                                                                    } else if (raw === '') setDelta(m, 0);
+                                                                    setDrafts((d) => ({ ...d, [m.id]: shown }));
+                                                                }}
+                                                                onBlur={() => clearDraft(m.id)}
+                                                                aria-label={`Stock change for ${m.generic_name}`}
+                                                                className={`h-8 w-14 border-0 bg-transparent p-0 text-center text-sm font-semibold tabular-nums focus:ring-0 ${
+                                                                    (deltas[m.id] ?? 0) > 0 ? 'text-success' : (deltas[m.id] ?? 0) < 0 ? 'text-error' : 'text-soil-400'
+                                                                }`}
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => { clearDraft(m.id); setDelta(m, (deltas[m.id] ?? 0) + 1); }}
+                                                                aria-label={`Add 1 to ${m.generic_name}`}
+                                                                title="Add 1"
+                                                                className="flex h-8 w-8 items-center justify-center text-lg leading-none text-soil-500 transition-colors hover:bg-soil-100 hover:text-success"
+                                                            >
+                                                                +
+                                                            </button>
+                                                        </div>
                                                         <Link
                                                             href={route('medicines.inventory', m.id)}
                                                             title="Stock history"
@@ -137,6 +276,15 @@ export default function MedicinesIndex({ medicines }: { medicines: MedicinesPagi
                                                             </svg>
                                                         </Link>
                                                         <button
+                                                            onClick={() => setArchiveId(m.id)}
+                                                            title="Archive medicine"
+                                                            className="rounded-[8px] p-2 text-soil-400 transition-colors duration-150 hover:bg-warning-light hover:text-warning"
+                                                        >
+                                                            <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                                                            </svg>
+                                                        </button>
+                                                        <button
                                                             onClick={() => setDeleteId(m.id)}
                                                             title="Delete medicine"
                                                             className="rounded-[8px] p-2 text-soil-400 transition-colors duration-150 hover:bg-error-light hover:text-error"
@@ -146,6 +294,7 @@ export default function MedicinesIndex({ medicines }: { medicines: MedicinesPagi
                                                             </svg>
                                                         </button>
                                                     </div>
+                                                    )}
                                                 </td>
                                             )}
                                         </motion.tr>
@@ -160,6 +309,22 @@ export default function MedicinesIndex({ medicines }: { medicines: MedicinesPagi
                                 </tbody>
                             </table>
                         </div>
+
+                        {!isDoctor && pending > 0 && (
+                            <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-accent-200 bg-accent-50 px-5 py-3">
+                                <span className="text-sm font-medium text-soil-800">
+                                    {pending} {pending === 1 ? 'medicine' : 'medicines'} with unsaved stock changes
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button type="button" onClick={() => setDeltas({})} disabled={saving} className="btn btn-secondary btn-sm">
+                                        Discard
+                                    </button>
+                                    <button type="button" onClick={saveStock} disabled={saving} className="btn btn-primary btn-sm">
+                                        {saving ? 'Saving…' : 'Save changes'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
 
                         <Pagination
                             links={medicines.links}
@@ -184,6 +349,18 @@ export default function MedicinesIndex({ medicines }: { medicines: MedicinesPagi
                 busy={deleting}
                 onConfirm={confirmDelete}
                 onClose={() => !deleting && setDeleteId(null)}
+            />
+
+            {/* Archive confirmation */}
+            <ConfirmModal
+                open={archiveId !== null}
+                tone="action"
+                title="Archive Medicine?"
+                message="This will hide the medicine from the catalog, prescriptions, and inventory. It stays in the archive and is permanently deleted after 6 months. You can restore it anytime before that."
+                confirmLabel="Archive Medicine"
+                busy={archiving}
+                onConfirm={confirmArchive}
+                onClose={() => !archiving && setArchiveId(null)}
             />
         </AuthenticatedLayout>
     );

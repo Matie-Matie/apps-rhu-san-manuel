@@ -10,7 +10,7 @@ const features = [
     'Complete dispensing records',
 ];
 
-export default function Welcome({ auth }: PageProps) {
+export default function Welcome({ auth, appVersion }: PageProps & { appVersion: string }) {
     return (
         <>
             <Head title="Welcome" />
@@ -45,16 +45,13 @@ export default function Welcome({ auth }: PageProps) {
                             initial={{ opacity: 0, y: 12 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, ease: EASE }}
-                            className="flex items-center gap-2.5"
+                            className="flex items-center"
                         >
                             <img
                                 src="/assets/logo.jpg"
                                 alt="APPS logo"
-                                className="h-9 w-9 rounded-[10px] object-cover shadow-sm"
+                                className="h-16 w-16 rounded-2xl object-cover shadow-md sm:h-20 sm:w-20"
                             />
-                            <span className="text-[15px] font-semibold tracking-tight text-white">
-                                APPS
-                            </span>
                         </motion.div>
 
                         <motion.nav
@@ -71,20 +68,12 @@ export default function Welcome({ auth }: PageProps) {
                                     Dashboard
                                 </Link>
                             ) : (
-                                <>
-                                    <Link
-                                        href={route('login')}
-                                        className="inline-flex items-center justify-center rounded-control px-3 py-2 text-[13px] font-medium text-white/90 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
-                                    >
-                                        Log in
-                                    </Link>
-                                    <Link
-                                        href={route('register')}
-                                        className="btn btn-primary btn-sm"
-                                    >
-                                        Get started
-                                    </Link>
-                                </>
+                                <Link
+                                    href={route('login')}
+                                    className="btn btn-primary btn-sm"
+                                >
+                                    Log in
+                                </Link>
                             )}
                         </motion.nav>
                     </header>
@@ -98,9 +87,9 @@ export default function Welcome({ auth }: PageProps) {
                                 transition={{ duration: 0.5, delay: 0.1, ease: EASE }}
                                 className="text-4xl font-bold leading-[1.15] tracking-tight text-white sm:text-5xl"
                             >
-                                Automated Prescription
+                                Rural Health Unit
                                 <br />
-                                Processing System
+                                Clinic
                             </motion.h1>
 
                             <motion.p
@@ -110,7 +99,7 @@ export default function Welcome({ auth }: PageProps) {
                                 className="mt-5 max-w-lg text-[15px] leading-relaxed text-accent-100/85"
                             >
                                 Digital prescriptions, medicine inventory, and
-                                dispensing records for the RHU Pharmacy Clinic.
+                                dispensing records for the Rural Health Unit, San Manuel, Isabela.
                             </motion.p>
 
                             <motion.ul
@@ -155,17 +144,9 @@ export default function Welcome({ auth }: PageProps) {
                                         Open Dashboard
                                     </Link>
                                 ) : (
-                                    <>
-                                        <Link href={route('login')} className="btn btn-primary">
-                                            Log in to the system
-                                        </Link>
-                                        <Link
-                                            href={route('register')}
-                                            className="inline-flex items-center justify-center rounded-control border border-white/25 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
-                                        >
-                                            Register an account
-                                        </Link>
-                                    </>
+                                    <Link href={route('login')} className="btn btn-primary">
+                                        Log in to the system
+                                    </Link>
                                 )}
                             </motion.div>
                         </div>
@@ -178,7 +159,7 @@ export default function Welcome({ auth }: PageProps) {
                         transition={{ duration: 0.5, delay: 0.3 }}
                         className="px-6 py-6 text-center text-xs text-accent-200/70 sm:px-10"
                     >
-                        RHU Pharmacy Clinic, San Manuel, Isabela
+                        Rural Health Unit Clinic, San Manuel, Isabela · {appVersion}
                     </motion.footer>
                 </div>
             </div>

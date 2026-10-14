@@ -89,47 +89,34 @@ export default function Register() {
 
                 <div>
                     <InputLabel value="Role" />
-                    <div className="mt-2 grid grid-cols-2 gap-3">
-                        <label
-                            className={`flex cursor-pointer items-center justify-center rounded-[10px] border-2 p-3 transition-colors ${
-                                data.role === 'doctor'
-                                    ? 'border-accent-500 bg-accent-50'
-                                    : 'border-soil-200 bg-white hover:bg-soil-50'
-                            }`}
-                        >
-                            <input
-                                type="radio"
-                                name="role"
-                                value="doctor"
-                                checked={data.role === 'doctor'}
-                                onChange={(e) => setData('role', e.target.value)}
-                                className="sr-only"
-                            />
-                            <div className="text-center">
-                                <div className="text-sm font-medium text-soil-900">Doctor</div>
-                                <div className="text-xs text-soil-500">Create prescriptions & manage patients</div>
-                            </div>
-                        </label>
-                        <label
-                            className={`flex cursor-pointer items-center justify-center rounded-[10px] border-2 p-3 transition-colors ${
-                                data.role === 'pharmacist'
-                                    ? 'border-accent-500 bg-accent-50'
-                                    : 'border-soil-200 bg-white hover:bg-soil-50'
-                            }`}
-                        >
-                            <input
-                                type="radio"
-                                name="role"
-                                value="pharmacist"
-                                checked={data.role === 'pharmacist'}
-                                onChange={(e) => setData('role', e.target.value)}
-                                className="sr-only"
-                            />
-                            <div className="text-center">
-                                <div className="text-sm font-medium text-soil-900">Pharmacist</div>
-                                <div className="text-xs text-soil-500">Manage inventory & dispense medicines</div>
-                            </div>
-                        </label>
+                    <div className="mt-2 grid grid-cols-3 gap-3">
+                        {[
+                            { value: 'doctor', title: 'Doctor', hint: 'Prescribe & manage patients' },
+                            { value: 'pharmacist', title: 'Pharmacist', hint: 'Inventory & dispensing' },
+                            { value: 'staff', title: 'Staff', hint: 'Register patients & vitals' },
+                        ].map((r) => (
+                            <label
+                                key={r.value}
+                                className={`flex cursor-pointer items-center justify-center rounded-[10px] border-2 p-3 transition-colors ${
+                                    data.role === r.value
+                                        ? 'border-accent-500 bg-accent-50'
+                                        : 'border-soil-200 bg-white hover:bg-soil-50'
+                                }`}
+                            >
+                                <input
+                                    type="radio"
+                                    name="role"
+                                    value={r.value}
+                                    checked={data.role === r.value}
+                                    onChange={(e) => setData('role', e.target.value)}
+                                    className="sr-only"
+                                />
+                                <div className="text-center">
+                                    <div className="text-sm font-medium text-soil-900">{r.title}</div>
+                                    <div className="text-xs text-soil-500">{r.hint}</div>
+                                </div>
+                            </label>
+                        ))}
                     </div>
                     <InputError message={errors.role} className="mt-2" />
                 </div>

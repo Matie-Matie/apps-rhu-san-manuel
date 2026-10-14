@@ -14,6 +14,7 @@ class PrescriptionItem extends Model
         'frequency',
         'duration',
         'quantity',
+        'unit',
         'instructions',
     ];
 

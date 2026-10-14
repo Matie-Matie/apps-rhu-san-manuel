@@ -11,7 +11,13 @@ class ActivityLog extends Model
         'user_id',
         'action',
         'description',
+        'prescription_id',
     ];
+
+    public function prescription(): BelongsTo
+    {
+        return $this->belongsTo(Prescription::class);
+    }
 
     public function user(): BelongsTo
     {

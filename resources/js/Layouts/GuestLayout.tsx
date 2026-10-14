@@ -70,7 +70,7 @@ export default function Guest({ children }: PropsWithChildren) {
                         transition={{ duration: 0.5, delay: 0.15, ease: EASE }}
                         className="mt-3 max-w-md text-sm leading-relaxed text-accent-200/80"
                     >
-                        Digital prescriptions, medicine inventory, and dispensing records for the RHU Pharmacy Clinic.
+                        Digital prescriptions, medicine inventory, and dispensing records for the Rural Health Unit, San Manuel, Isabela.
                     </motion.p>
 
                     <motion.ul
@@ -98,7 +98,7 @@ export default function Guest({ children }: PropsWithChildren) {
                     transition={{ duration: 0.5, delay: 0.25 }}
                     className="relative text-sm text-accent-200/70"
                 >
-                    RHU Pharmacy Clinic, San Manuel, Isabela
+                    Rural Health Unit, San Manuel, Isabela
                 </motion.div>
             </div>
 
@@ -128,7 +128,7 @@ export default function Guest({ children }: PropsWithChildren) {
                     </motion.div>
 
                     <p className="mt-6 text-center text-xs text-soil-400">
-                        RHU Pharmacy Clinic, San Manuel, Isabela
+                        Rural Health Unit, San Manuel, Isabela
                     </p>
                 </div>
             </div>

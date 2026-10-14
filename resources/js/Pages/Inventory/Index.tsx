@@ -53,11 +53,23 @@ function expiryTone(iso: string | null) {
     return { cls: 'text-soil-500', label: null };
 }
 
-export default function InventoryIndex({ inventories, lowStock }: { inventories: InventoriesPaginator; lowStock: LowStockItem[] }) {
+export default function InventoryIndex({ inventories, lowStock, filter }: { inventories: InventoriesPaginator; lowStock: LowStockItem[]; filter: string | null }) {
     return (
         <AuthenticatedLayout header="Medicine Inventory">
             <Head title="Inventory" />
             <div className="page-content">
+                {filter && (
+                    <FadeIn y={12} duration={0.4}>
+                        <div className="mb-6 flex items-center justify-between gap-3 rounded-control border border-accent-200 bg-accent-50 p-4">
+                            <p className="text-sm font-medium text-soil-800">
+                                {filter === 'low_stock' ? 'Showing only low-stock batches.' : 'Showing only batches expiring within 30 days.'}
+                            </p>
+                            <Link href={route('inventory.index')} className="btn btn-secondary btn-sm shrink-0">
+                                Clear filter
+                            </Link>
+                        </div>
+                    </FadeIn>
+                )}
                 {lowStock.length > 0 && (
                     <FadeIn y={12} duration={0.4}>
                         <div className="mb-6 flex items-start gap-3 rounded-control border border-warning/25 bg-warning-light p-4">

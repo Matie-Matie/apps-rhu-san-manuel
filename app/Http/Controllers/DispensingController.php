@@ -18,17 +18,20 @@ class DispensingController extends Controller
             abort(403, 'Only pharmacists can dispense medications.');
         }
 
-        // Can only dispense validated prescriptions
-        if ($prescription->status !== 'validated') {
-            return redirect()->back()->with('error', 'Prescription must be validated before dispensing.');
+        // Can only dispense pending prescriptions (V2: no validate step —
+        // the doctor's signature already validates). Legacy 'validated' rows
+        // are still dispensable.
+        if (!in_array($prescription->status, ['pending', 'validated'], true)) {
+            return redirect()->back()->with('error', 'Only pending prescriptions can be dispensed.');
         }
 
         $prescription->load(['patient', 'doctor', 'items.medicine']);
 
-        // Get all available inventory (with stock > 0, not expired)
+        // Get all available inventory (with stock > 0, not expired, medicine not archived)
         $allMedicineIds = $prescription->items->pluck('medicine_id');
         $inventory = MedicineInventory::with('medicine')
             ->whereIn('medicine_id', $allMedicineIds)
+            ->whereHas('medicine', fn ($q) => $q->active())
             ->where('quantity', '>', 0)
             ->where(function ($q) {
                 $q->whereNull('expiry_date')->orWhere('expiry_date', '>', now());
@@ -63,8 +66,8 @@ class DispensingController extends Controller
             abort(403, 'Only pharmacists can dispense medications.');
         }
 
-        if ($prescription->status !== 'validated') {
-            return redirect()->back()->with('error', 'Prescription must be validated before dispensing.');
+        if (!in_array($prescription->status, ['pending', 'validated'], true)) {
+            return redirect()->back()->with('error', 'Only pending prescriptions can be dispensed.');
         }
 
         $validated = $request->validate([
@@ -113,9 +116,10 @@ class DispensingController extends Controller
             'user_id' => $request->user()->id,
             'action' => 'dispense_prescription',
             'description' => "Dispensed prescription {$prescription->prescription_number}",
+            'prescription_id' => $prescription->id,
         ]);
 
-        return redirect()->route('prescriptions.show', $prescription)
+        return redirect()->route('prescriptions.print', $prescription)
             ->with('success', 'Prescription dispensed successfully.');
     }
 }

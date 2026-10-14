@@ -18,8 +18,9 @@ interface StockEntry {
 }
 
 export default function MedicinesInventory({ medicine, stockEntries }: { medicine: Medicine; stockEntries: StockEntry[] }) {
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post, processing, errors, reset } = useForm({
         batch_number: '',
+        reorder_level: '10',
         quantity: '',
         unit_price: '',
         expiry_date: '',
@@ -27,7 +28,10 @@ export default function MedicinesInventory({ medicine, stockEntries }: { medicin
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        post(route('medicines.stock-in', medicine.id));
+        post(route('medicines.add-stock', medicine.id), {
+            preserveScroll: true,
+            onSuccess: () => reset()
+        });
     };
 
     return (
@@ -58,6 +62,11 @@ export default function MedicinesInventory({ medicine, stockEntries }: { medicin
                                         <input type="number" step="0.01" value={data.unit_price} onChange={(e) => setData('unit_price', e.target.value)} className="input-field mt-1.5" required />
                                         <InputError message={errors.unit_price} className="mt-2" />
                                     </div>
+                                </div>
+                                <div>
+                                    <InputLabel value="Reorder Level" />
+                                    <input type="number" min="0" value={data.reorder_level} onChange={(e) => setData('reorder_level', e.target.value)} className="input-field mt-1.5" required />
+                                    <InputError message={errors.reorder_level} className="mt-2" />
                                 </div>
                                 <div>
                                     <InputLabel value="Expiry Date" />
