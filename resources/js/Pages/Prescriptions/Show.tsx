@@ -22,7 +22,7 @@ interface PrescriptionData {
     created_at: string;
 }
 
-export default function PrescriptionsShow({ prescription }: { prescription: PrescriptionData }) {
+export default function PrescriptionsShow({ prescription, unavailable = [] }: { prescription: PrescriptionData; unavailable?: string[] }) {
     const { auth } = usePage().props as any;
     const role = auth?.user?.role;
 
@@ -90,6 +90,15 @@ export default function PrescriptionsShow({ prescription }: { prescription: Pres
                             )}
                         </div>
                     </div>
+
+                    {unavailable.length > 0 && (
+                        <div role="alert" className="rounded-control border border-red-300 bg-red-50 p-4">
+                            <p className="text-sm font-semibold text-red-900">Cannot dispense: medicine not available</p>
+                            <p className="mt-0.5 text-sm text-red-800">
+                                No usable stock for {unavailable.join(', ')}. Restock it before dispensing this prescription.
+                            </p>
+                        </div>
+                    )}
 
                     {/* Medications */}
                     <div className="card overflow-hidden">
@@ -181,7 +190,13 @@ export default function PrescriptionsShow({ prescription }: { prescription: Pres
                     {prescription.status !== 'dispensed' && prescription.status !== 'cancelled' && (
                         <div className="flex justify-end gap-3">
                             {(prescription.status === 'pending' || prescription.status === 'validated') && role === 'pharmacist' && (
-                                <Link href={route('dispensing.create', prescription.id)} className="btn btn-primary">Dispense</Link>
+                                unavailable.length > 0 ? (
+                                    <button type="button" disabled className="btn btn-primary cursor-not-allowed opacity-50" title="Medicine not available">
+                                        Dispense
+                                    </button>
+                                ) : (
+                                    <Link href={route('dispensing.create', prescription.id)} className="btn btn-primary">Dispense</Link>
+                                )
                             )}
                             <button onClick={() => setConfirmAction({ status: 'cancelled', busy: false })} className="btn btn-secondary">
                                 Cancel Prescription

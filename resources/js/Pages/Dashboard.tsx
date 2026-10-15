@@ -165,26 +165,9 @@ function StatCard({
     );
 }
 
-function MiniBar({ pct, delay = 0.5, tone = 'bg-accent-500' }: { pct: number; delay?: number; tone?: string }) {
-    return (
-        <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-soil-100">
-            <motion.div
-                className={`h-full rounded-full ${tone}`}
-                initial={{ width: 0 }}
-                animate={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
-                transition={{ delay, duration: 0.7, ease: 'easeOut' }}
-            />
-        </div>
-    );
-}
-
 // ─── Doctor Dashboard ───
 
 function DoctorDashboard({ stats }: any) {
-    const dispensedPct = stats.my_prescriptions_total
-        ? Math.round((stats.my_dispensed / stats.my_prescriptions_total) * 100)
-        : 0;
-
     const cards = [
         {
             label: 'My Prescriptions',
@@ -192,12 +175,7 @@ function DoctorDashboard({ stats }: any) {
             href: route('prescriptions.index'),
             icon: IconDocument,
             tint: 'accent' as const,
-            foot: (
-                <>
-                    <MiniBar pct={dispensedPct} />
-                    <div className="stat-foot">{stats.my_dispensed} dispensed ({dispensedPct}%)</div>
-                </>
-            ),
+            foot: <div className="stat-foot mt-3">All prescriptions you wrote</div>,
         },
         {
             label: 'Pending',

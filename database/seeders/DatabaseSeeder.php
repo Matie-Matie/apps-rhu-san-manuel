@@ -39,6 +39,10 @@ class DatabaseSeeder extends Seeder
             'email_verified_at' => now(),
         ]);
 
+        // Separate admin account (activity logs only). Idempotent, so start.bat
+        // also runs it on every launch for clinics set up before it existed.
+        $this->call(AdminAccountSeeder::class);
+
         // Official San Manuel clinic medicine list (72 real entries
         // transcribed from Kamille's photo). No fabricated prescriptions,
         // inventory, or activity logs are seeded here.

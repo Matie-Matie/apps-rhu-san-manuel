@@ -56,7 +56,7 @@ class PatientController extends Controller
 
     private function historyPayload(Patient $patient, $user, int $limit): array
     {
-        $vitals = $patient->vitals()->with('recorder:id,name')->latest()->latest('id')->take(20)->get();
+        $vitals = $patient->vitals()->with('recorder:id,name')->latest()->latest('id')->take(50)->get();
 
         $payload = [
             'patient' => $patient->only([

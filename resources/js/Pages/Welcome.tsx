@@ -87,9 +87,9 @@ export default function Welcome({ auth, appVersion }: PageProps & { appVersion: 
                                 transition={{ duration: 0.5, delay: 0.1, ease: EASE }}
                                 className="text-4xl font-bold leading-[1.15] tracking-tight text-white sm:text-5xl"
                             >
-                                Rural Health Unit
+                                RURAL HEALTH
                                 <br />
-                                Clinic
+                                CLINIC
                             </motion.h1>
 
                             <motion.p

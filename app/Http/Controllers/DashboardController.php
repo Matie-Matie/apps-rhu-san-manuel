@@ -21,6 +21,11 @@ class DashboardController extends Controller
             return redirect()->route('patients.index');
         }
 
+        // The admin account only reviews activity logs.
+        if ($user->isAdmin()) {
+            return redirect()->route('activity-logs.index');
+        }
+
         if ($user->isPharmacist()) {
             return $this->pharmacistDashboard();
         }

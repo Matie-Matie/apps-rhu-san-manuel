@@ -13,4 +13,11 @@ export type PageProps<
     auth: {
         user: User;
     };
+    notifications?: {
+        id: string;
+        tone: 'info' | 'warning' | 'danger' | 'success';
+        title: string;
+        body: string;
+        href: string;
+    }[];
 };

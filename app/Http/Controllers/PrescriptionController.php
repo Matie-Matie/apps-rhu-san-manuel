@@ -6,6 +6,7 @@ use App\Models\Prescription;
 use App\Models\PrescriptionItem;
 use App\Models\Patient;
 use App\Models\Medicine;
+use App\Models\MedicineInventory;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -123,8 +124,24 @@ class PrescriptionController extends Controller
     {
         $prescription->load(['patient', 'doctor', 'items.medicine', 'dispensingRecord.pharmacist', 'dispensingRecord.dispensedItems.medicineInventory.medicine']);
 
+        // Pharmacists see up-front which medicines have no usable (in-stock,
+        // unexpired) batch, so they are never offered a Dispense that cannot work.
+        $unavailable = [];
+        if (request()->user()->isPharmacist() && in_array($prescription->status, ['pending', 'validated'], true)) {
+            foreach ($prescription->items as $item) {
+                $available = MedicineInventory::where('medicine_id', $item->medicine_id)
+                    ->where('quantity', '>', 0)
+                    ->where(fn ($q) => $q->whereNull('expiry_date')->orWhere('expiry_date', '>', now()))
+                    ->sum('quantity');
+                if ($available <= 0) {
+                    $unavailable[] = $item->medicine?->generic_name ?? 'Unknown';
+                }
+            }
+        }
+
         return Inertia::render('Prescriptions/Show', [
             'prescription' => $prescription,
+            'unavailable' => $unavailable,
         ]);
     }
 

@@ -46,6 +46,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(DispensingRecord::class, 'pharmacist_id');
     }
 
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
     public function isDoctor(): bool
     {
         return $this->role === 'doctor';

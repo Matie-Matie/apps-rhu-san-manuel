@@ -395,15 +395,140 @@ class ClinicRevisionsTest extends TestCase
         $this->prescription($doctor, $patient, 'Cough'); // unrelated log noise
 
         $this->actingAs($pharmacist)->post(route('dispensing.store', $rx), [
-            'items' => [['medicine_inventory_id' => $batch->id, 'quantity' => 6]],
+            'items' => [['prescription_item_id' => $rx->items()->first()->id, 'medicine_inventory_id' => $batch->id, 'quantity' => 6]],
         ])->assertSessionHasNoErrors();
 
-        $this->actingAs($pharmacist)->get(route('activity-logs.index', ['type' => 'dispensed']))
+        // Activity logs belong to the separate admin account.
+        $this->actingAs($this->user('admin'))->get(route('activity-logs.index', ['type' => 'dispensed']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('logs.total', 1)
                 ->where('logs.data.0.received.patient', 'Juan Dela Cruz')
                 ->where('logs.data.0.received.items.0.medicine', 'Paracetamol')
                 ->where('logs.data.0.received.items.0.quantity', 6));
+    }
+
+    // ---- Separate admin account (activity logs) -------------------------------
+
+    public function test_only_the_admin_account_can_open_activity_logs(): void
+    {
+        foreach (['doctor', 'pharmacist', 'staff'] as $role) {
+            $this->actingAs($this->user($role))->get(route('activity-logs.index'))->assertForbidden();
+        }
+
+        $this->actingAs($this->user('admin'))->get(route('activity-logs.index'))->assertOk();
+    }
+
+    public function test_admin_lands_on_activity_logs_and_is_kept_out_of_clinic_pages(): void
+    {
+        $admin = $this->user('admin');
+
+        $this->actingAs($admin)->get(route('dashboard'))->assertRedirect(route('activity-logs.index'));
+
+        foreach (['patients.index', 'prescriptions.index', 'medicines.index', 'inventory.index', 'reports.index'] as $name) {
+            $this->actingAs($admin)->get(route($name))->assertForbidden();
+        }
+    }
+
+    public function test_admin_seeder_is_idempotent(): void
+    {
+        $this->seed(\Database\Seeders\AdminAccountSeeder::class);
+        $this->seed(\Database\Seeders\AdminAccountSeeder::class);
+
+        $this->assertSame(1, User::where('role', 'admin')->count());
+        $this->assertNotNull(User::where('email', 'admin@apps.test')->first()->email_verified_at);
+    }
+
+    // ---- Dispensing is blocked when the medicine is not available -------------
+
+    private function pendingRx(Medicine $m, int $qty = 5): Prescription
+    {
+        $rx = $this->prescription($this->user('doctor'), Patient::create($this->patientData()), 'Fever');
+        $rx->items()->create(['medicine_id' => $m->id, 'dosage' => '1 tablet', 'frequency' => 'Twice a day (BID)', 'duration' => '3 days', 'quantity' => $qty]);
+
+        return $rx;
+    }
+
+    public function test_cannot_dispense_an_expired_batch(): void
+    {
+        $m = Medicine::create(['generic_name' => 'Amoxicillin']);
+        $batch = $m->inventories()->create(['quantity' => 50, 'unit_price' => 2, 'reorder_level' => 5, 'expiry_date' => now()->subDay()->toDateString()]);
+        $rx = $this->pendingRx($m);
+
+        $this->actingAs($this->user('pharmacist'))->post(route('dispensing.store', $rx), [
+            'items' => [['prescription_item_id' => $rx->items()->first()->id, 'medicine_inventory_id' => $batch->id, 'quantity' => 5]],
+        ])->assertSessionHas('error');
+
+        $this->assertSame('pending', $rx->fresh()->status);
+        $this->assertSame(50, (int) $batch->fresh()->quantity);
+    }
+
+    public function test_cannot_dispense_a_batch_of_a_different_medicine(): void
+    {
+        $m = Medicine::create(['generic_name' => 'Amoxicillin']);
+        $other = Medicine::create(['generic_name' => 'Cetirizine']);
+        $wrongBatch = $other->inventories()->create(['quantity' => 50, 'unit_price' => 2, 'reorder_level' => 5]);
+        $rx = $this->pendingRx($m);
+
+        $this->actingAs($this->user('pharmacist'))->post(route('dispensing.store', $rx), [
+            'items' => [['prescription_item_id' => $rx->items()->first()->id, 'medicine_inventory_id' => $wrongBatch->id, 'quantity' => 5]],
+        ])->assertSessionHas('error');
+
+        $this->assertSame('pending', $rx->fresh()->status);
+        $this->assertSame(50, (int) $wrongBatch->fresh()->quantity);
+    }
+
+    public function test_dispensing_without_a_batch_is_rejected(): void
+    {
+        $m = Medicine::create(['generic_name' => 'Amoxicillin']);
+        $rx = $this->pendingRx($m);
+
+        $this->actingAs($this->user('pharmacist'))->post(route('dispensing.store', $rx), [
+            'items' => [['prescription_item_id' => $rx->items()->first()->id, 'medicine_inventory_id' => '', 'quantity' => 5]],
+        ])->assertSessionHasErrors('items.0.medicine_inventory_id');
+
+        $this->assertSame('pending', $rx->fresh()->status);
+    }
+
+    public function test_prescription_page_flags_unavailable_medicines_to_the_pharmacist(): void
+    {
+        $m = Medicine::create(['generic_name' => 'Amoxicillin']);
+        $rx = $this->pendingRx($m); // no stock at all
+
+        $this->actingAs($this->user('pharmacist'))->get(route('prescriptions.show', $rx))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('unavailable', ['Amoxicillin']));
+
+        $m->inventories()->create(['quantity' => 20, 'unit_price' => 2, 'reorder_level' => 5]);
+
+        $this->actingAs($this->user('pharmacist'))->get(route('prescriptions.show', $rx))
+            ->assertInertia(fn (Assert $page) => $page->where('unavailable', []));
+    }
+
+    // ---- Bell notifications ---------------------------------------------------
+
+    public function test_pharmacist_bell_lists_pending_rx_low_stock_and_expiring_batches(): void
+    {
+        $m = Medicine::create(['generic_name' => 'Amoxicillin']);
+        $m->inventories()->create(['quantity' => 2, 'unit_price' => 2, 'reorder_level' => 10, 'expiry_date' => now()->addDays(10)->toDateString()]);
+        $this->pendingRx($m);
+
+        $this->actingAs($this->user('pharmacist'))->get(route('dashboard'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('notifications', 3)
+                ->where('notifications.0.id', 'pending-rx'));
+
+        $this->actingAs($this->user('staff'))->get(route('patients.index'))
+            ->assertInertia(fn (Assert $page) => $page->has('notifications', 0));
+    }
+
+    public function test_inventory_page_lists_expired_and_expiring_soon_batches(): void
+    {
+        $m = Medicine::create(['generic_name' => 'Amoxicillin']);
+        $m->inventories()->create(['quantity' => 20, 'unit_price' => 2, 'reorder_level' => 5, 'expiry_date' => now()->addDays(12)->toDateString()]);
+        $m->inventories()->create(['quantity' => 20, 'unit_price' => 2, 'reorder_level' => 5, 'expiry_date' => now()->addYear()->toDateString()]);
+
+        $this->actingAs($this->user('pharmacist'))->get(route('inventory.index'))
+            ->assertInertia(fn (Assert $page) => $page->has('expiring', 1));
     }
 }

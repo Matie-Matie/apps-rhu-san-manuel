@@ -197,7 +197,8 @@ export default function PatientsShow({
 
                             {can_record_vitals && (
                                 <form onSubmit={submitVitals} className="rounded-control border border-soil-200 bg-surface-secondary p-4">
-                                    <div className="mb-3 text-sm font-medium text-soil-700">Record new vitals</div>
+                                    <div className="mb-1 text-sm font-medium text-soil-700">Record new check-up</div>
+                                    <p className="mb-3 text-xs text-soil-500">Each save is added to the Check-up History below; earlier records are kept.</p>
                                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                                         {numberField('bp_systolic', 'BP systolic (mmHg)', { min: 50, max: 300, placeholder: '120' })}
                                         {numberField('bp_diastolic', 'BP diastolic (mmHg)', { min: 30, max: 200, placeholder: '80' })}
@@ -215,29 +216,37 @@ export default function PatientsShow({
                             )}
                         </div>
 
-                        {vitals.length > 1 && (
+                        {vitals.length > 0 && (
                             <div className="table-container rounded-none border-0 border-t border-soil-200 shadow-none">
+                                <div className="flex items-center justify-between px-5 pt-4">
+                                    <h5 className="text-sm font-semibold text-soil-800">Check-up History</h5>
+                                    <span className="text-xs text-soil-500">
+                                        {vitals.length} {vitals.length === 1 ? 'record' : 'records'}, newest first
+                                    </span>
+                                </div>
                                 <table>
                                     <thead>
                                         <tr>
-                                            <th>Date</th>
+                                            <th>Date &amp; time</th>
                                             <th>BP</th>
                                             <th>Height</th>
                                             <th>Weight</th>
                                             <th>Temp</th>
                                             <th>Pulse</th>
+                                            <th>BMI</th>
                                             <th>By</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {vitals.map((v) => (
                                             <tr key={v.id}>
-                                                <td className="whitespace-nowrap">{new Date(v.created_at).toLocaleDateString()}</td>
+                                                <td className="whitespace-nowrap">{new Date(v.created_at).toLocaleString()}</td>
                                                 <td className="tabular-nums">{bp(v)}</td>
                                                 <td className="tabular-nums">{fmt(v.height_cm, 'cm')}</td>
                                                 <td className="tabular-nums">{fmt(v.weight_kg, 'kg')}</td>
                                                 <td className="tabular-nums">{fmt(v.temperature_c, '°C')}</td>
                                                 <td className="tabular-nums">{fmt(v.pulse_rate, 'bpm')}</td>
+                                                <td className="tabular-nums">{bmi(v) ? bmi(v)!.toFixed(1) : '-'}</td>
                                                 <td className="text-soil-500">{v.recorder?.name ?? '-'}</td>
                                             </tr>
                                         ))}

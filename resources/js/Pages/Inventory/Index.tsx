@@ -24,6 +24,14 @@ interface InventoriesPaginator {
     total: number;
 }
 
+interface ExpiringBatch {
+    id: number;
+    batch_number: string | null;
+    expiry_date: string;
+    quantity: number;
+    medicine: { generic_name: string };
+}
+
 interface LowStockItem {
     id: number;
     generic_name: string;
@@ -44,16 +52,25 @@ function formatDate(iso: string | null) {
     });
 }
 
-/** Expiry tone: expired / within 30 days = flagged, otherwise neutral. */
+/**
+ * Expiry tone: expired / within 30 days = flagged, otherwise neutral.
+ * Dark-on-light pairs (no yellow on white) so it stays easy to read.
+ */
 function expiryTone(iso: string | null) {
-    if (!iso) return { cls: 'text-soil-500', label: null };
+    if (!iso) return { cls: 'text-soil-500', label: null, badge: '' };
     const days = Math.floor((new Date(iso).getTime() - Date.now()) / 86_400_000);
-    if (days < 0) return { cls: 'font-semibold text-error', label: 'Expired' };
-    if (days <= 30) return { cls: 'font-semibold text-warning', label: `${days}d left` };
-    return { cls: 'text-soil-500', label: null };
+    if (days < 0) {
+        return { cls: 'font-semibold text-red-800', label: 'Expired', badge: 'bg-red-100 text-red-800 ring-red-300' };
+    }
+    if (days <= 30) {
+        return { cls: 'font-semibold text-soil-900', label: `Expires in ${days}d`, badge: 'bg-orange-100 text-orange-900 ring-orange-300' };
+    }
+    return { cls: 'text-soil-500', label: null, badge: '' };
 }
 
-export default function InventoryIndex({ inventories, lowStock, filter }: { inventories: InventoriesPaginator; lowStock: LowStockItem[]; filter: string | null }) {
+export default function InventoryIndex({ inventories, lowStock, expiring = [], filter }: { inventories: InventoriesPaginator; lowStock: LowStockItem[]; expiring?: ExpiringBatch[]; filter: string | null }) {
+    const expiredBatches = expiring.filter((b) => new Date(b.expiry_date).getTime() < Date.now());
+    const expiringSoon = expiring.filter((b) => new Date(b.expiry_date).getTime() >= Date.now());
     return (
         <AuthenticatedLayout header="Medicine Inventory">
             <Head title="Inventory" />
@@ -72,21 +89,55 @@ export default function InventoryIndex({ inventories, lowStock, filter }: { inve
                 )}
                 {lowStock.length > 0 && (
                     <FadeIn y={12} duration={0.4}>
-                        <div className="mb-6 flex items-start gap-3 rounded-control border border-warning/25 bg-warning-light p-4">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-warning/15 text-warning">
+                        <div className="mb-6 flex items-start gap-3 rounded-control border border-orange-300 bg-orange-50 p-4">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-orange-100 text-orange-700">
                                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.6" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                                 </svg>
                             </div>
                             <div className="min-w-0">
-                                <p className="text-sm font-semibold text-warning">Low Stock Alert</p>
+                                <p className="text-sm font-semibold text-orange-900">Low Stock Alert</p>
                                 <div className="mt-1.5 flex flex-wrap gap-2">
                                     {lowStock.map((m) => (
-                                        <span key={m.id} className="rounded-full bg-white/80 px-2.5 py-1 text-xs font-medium text-soil-700">
+                                        <span key={m.id} className="rounded-full border border-orange-200 bg-white px-2.5 py-1 text-xs font-medium text-soil-800">
                                             {m.generic_name}
-                                            <span className="ml-1 font-semibold tabular-nums text-warning">{m.total_stock ?? 0} left</span>
+                                            <span className="ml-1 font-bold tabular-nums text-red-700">{m.total_stock ?? 0} left</span>
                                         </span>
                                     ))}
+                                </div>
+                            </div>
+                        </div>
+                    </FadeIn>
+                )}
+                {expiring.length > 0 && (
+                    <FadeIn y={12} duration={0.4}>
+                        <div className={`mb-6 flex items-start gap-3 rounded-control border p-4 ${expiredBatches.length ? 'border-red-300 bg-red-50' : 'border-orange-300 bg-orange-50'}`}>
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] ${expiredBatches.length ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.6" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div className="min-w-0">
+                                <p className={`text-sm font-semibold ${expiredBatches.length ? 'text-red-900' : 'text-orange-900'}`}>
+                                    {expiredBatches.length > 0 && expiringSoon.length > 0
+                                        ? 'Expired and expiring-soon batches'
+                                        : expiredBatches.length > 0
+                                          ? 'Expired batches: do not dispense'
+                                          : 'Expiring Soon (within 30 days)'}
+                                </p>
+                                <div className="mt-1.5 flex flex-wrap gap-2">
+                                    {expiring.map((b) => {
+                                        const isExpired = new Date(b.expiry_date).getTime() < Date.now();
+                                        return (
+                                            <span key={b.id} className={`rounded-full border bg-white px-2.5 py-1 text-xs font-medium text-soil-800 ${isExpired ? 'border-red-200' : 'border-orange-200'}`}>
+                                                {b.medicine.generic_name}
+                                                {b.batch_number ? ` (${b.batch_number})` : ''}
+                                                <span className={`ml-1 font-bold tabular-nums ${isExpired ? 'text-red-700' : 'text-orange-800'}`}>
+                                                    {isExpired ? 'expired' : 'exp'} {formatDate(b.expiry_date)}
+                                                </span>
+                                            </span>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
@@ -147,14 +198,18 @@ export default function InventoryIndex({ inventories, lowStock, filter }: { inve
                                                 <td className={`tabular-nums ${expiry.cls}`}>
                                                     {formatDate(inv.expiry_date)}
                                                     {expiry.label && (
-                                                        <span className="ml-1.5 rounded-full bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold text-warning">
+                                                        <span className={`ml-2 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${expiry.badge}`}>
                                                             {expiry.label}
                                                         </span>
                                                     )}
                                                 </td>
-                                                <td className={isLow ? 'font-semibold tabular-nums text-warning' : 'tabular-nums text-soil-700'}>
+                                                <td className={isLow ? 'font-bold tabular-nums text-soil-900' : 'tabular-nums text-soil-700'}>
                                                     {inv.quantity}
-                                                    {isLow && <span className="ml-1.5 text-[11px] font-medium">low</span>}
+                                                    {isLow && (
+                                                        <span className="ml-2 inline-block rounded-full bg-red-100 px-2.5 py-0.5 text-sm font-bold text-red-800 ring-1 ring-inset ring-red-300">
+                                                            {inv.quantity <= 0 ? 'Out' : 'Low'}
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="tabular-nums text-soil-700">
                                                     &#x20B1;{Number(inv.unit_price).toFixed(2)}

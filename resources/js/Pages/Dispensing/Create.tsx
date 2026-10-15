@@ -39,6 +39,10 @@ export default function DispensingCreate({ prescription, inventory }: { prescrip
         return inventory.filter((inv) => inv.medicine.id === item.medicine.id && inv.quantity > 0);
     };
 
+    // Medicines with no usable (in-stock, unexpired) batch can't be dispensed.
+    const unavailableItems = prescription.items.filter((item) => getAvailableInventory(item).length === 0);
+    const blocked = unavailableItems.length > 0;
+
     return (
         <AuthenticatedLayout header={`Dispense - ${prescription.prescription_number}`}>
             <Head title="Dispense Prescription" />
@@ -70,6 +74,19 @@ export default function DispensingCreate({ prescription, inventory }: { prescrip
                             <h3 className="card-title">Select Inventory Batches</h3>
                         </div>
                         <div className="card-body">
+                            {blocked && (
+                                <div role="alert" className="mb-6 flex items-start gap-3 rounded-control border border-red-300 bg-red-50 p-4">
+                                    <svg className="mt-0.5 h-5 w-5 shrink-0 text-red-700" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                                    </svg>
+                                    <div>
+                                        <p className="text-sm font-semibold text-red-900">Cannot dispense: medicine not available</p>
+                                        <p className="mt-0.5 text-sm text-red-800">
+                                            No usable stock for {unavailableItems.map((i) => i.medicine.generic_name).join(', ')}. Restock it (or remove expired batches) before dispensing this prescription.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                             <form onSubmit={submit} className="space-y-6">
                                 {prescription.items.map((item, idx) => {
                                     const available = getAvailableInventory(item);
@@ -87,6 +104,8 @@ export default function DispensingCreate({ prescription, inventory }: { prescrip
                                                     <select
                                                         value={data.items[idx].medicine_inventory_id}
                                                         onChange={(e) => updateItem(idx, 'medicine_inventory_id', e.target.value)}
+                                                        disabled={available.length === 0}
+                                                        required
                                                         className="input-field mt-1.5"
                                                     >
                                                         <option value="">Select batch</option>
@@ -97,7 +116,7 @@ export default function DispensingCreate({ prescription, inventory }: { prescrip
                                                         ))}
                                                     </select>
                                                     {available.length === 0 && (
-                                                        <p className="mt-1.5 text-xs text-error">No stock available for this medicine.</p>
+                                                        <p className="mt-1.5 text-sm font-semibold text-red-700">Not available: out of stock or expired. Cannot be dispensed.</p>
                                                     )}
                                                     {errors[`items.${idx}.medicine_inventory_id`] && (
                                                         <p className="input-error">{errors[`items.${idx}.medicine_inventory_id`]}</p>
@@ -128,7 +147,7 @@ export default function DispensingCreate({ prescription, inventory }: { prescrip
 
                                 <div className="flex justify-end gap-3">
                                     <Link href={route('prescriptions.show', prescription.id)} className="btn btn-secondary">Cancel</Link>
-                                    <button type="submit" disabled={processing} className="btn btn-primary">
+                                    <button type="submit" disabled={processing || blocked} className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50">
                                         Complete Dispensing
                                     </button>
                                 </div>

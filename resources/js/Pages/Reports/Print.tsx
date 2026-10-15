@@ -18,6 +18,15 @@ export default function ReportPrint({ period, range, report, generatedBy, genera
 
     const title = PERIOD_TITLES[period] ?? 'Report';
 
+    // window.close() is ignored on tabs the page did not open itself, so fall
+    // back to the reports page.
+    const closePreview = () => {
+        window.close();
+        setTimeout(() => {
+            window.location.href = route('reports.index');
+        }, 150);
+    };
+
     const th = 'border-b border-black py-1.5 text-left font-semibold';
     const td = 'border-b border-gray-300 py-1.5';
 
@@ -31,7 +40,7 @@ export default function ReportPrint({ period, range, report, generatedBy, genera
                         <button onClick={() => window.print()} className="rounded-md bg-black px-4 py-1.5 text-sm font-medium text-white">
                             Print
                         </button>
-                        <button onClick={() => window.close()} className="rounded-md border border-gray-300 px-4 py-1.5 text-sm">
+                        <button onClick={closePreview} className="rounded-md border border-gray-300 px-4 py-1.5 text-sm">
                             Close
                         </button>
                     </div>

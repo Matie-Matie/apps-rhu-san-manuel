@@ -30,9 +30,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Staff, doctors and pharmacists can all see patients; the controller
     // decides who may edit and who may see prescription history.
-    Route::resource('patients', PatientController::class);
-    Route::get('/patients/{patient}/history', [PatientController::class, 'history'])->name('patients.history');
-    Route::post('/patients/{patient}/vitals', [PatientVitalController::class, 'store'])->name('patients.vitals.store');
+    // The admin account is for activity logs only, so it is kept out of here.
+    Route::middleware('role:doctor,pharmacist,staff')->group(function () {
+        Route::resource('patients', PatientController::class);
+        Route::get('/patients/{patient}/history', [PatientController::class, 'history'])->name('patients.history');
+        Route::post('/patients/{patient}/vitals', [PatientVitalController::class, 'store'])->name('patients.vitals.store');
+    });
+
+    // Activity logs belong to the separate admin account only.
+    Route::get('/activity-logs', [ActivityLogController::class, 'index'])
+        ->middleware('role:admin')
+        ->name('activity-logs.index');
 
     // Clinical + pharmacy pages are closed to front-desk staff.
     Route::middleware('role:doctor,pharmacist')->group(function () {
@@ -56,8 +64,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/print', [ReportController::class, 'print'])->name('reports.print');
-
-        Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
     });
 });
 

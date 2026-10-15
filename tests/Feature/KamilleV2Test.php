@@ -153,7 +153,7 @@ class KamilleV2Test extends TestCase
 
         // Pending dispenses straight away and lands on the print sheet.
         $this->actingAs($pharmacist)->post(route('dispensing.store', $rx), [
-            'items' => [['medicine_inventory_id' => $batch->id, 'quantity' => 30]],
+            'items' => [['prescription_item_id' => $rx->items()->first()->id, 'medicine_inventory_id' => $batch->id, 'quantity' => 30]],
         ])
             ->assertSessionHasNoErrors()
             ->assertRedirect(route('prescriptions.print', $rx));

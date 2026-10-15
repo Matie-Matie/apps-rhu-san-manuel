@@ -6,7 +6,10 @@ use App\Models\Prescription;
 use App\Models\DispensingRecord;
 use App\Models\MedicineInventory;
 use App\Models\ActivityLog;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class DispensingController extends Controller
@@ -73,44 +76,67 @@ class DispensingController extends Controller
         $validated = $request->validate([
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
+            'items.*.prescription_item_id' => ['required', Rule::exists('prescription_items', 'id')->where('prescription_id', $prescription->id)],
             'items.*.medicine_inventory_id' => 'required|exists:medicine_inventories,id',
             'items.*.quantity' => 'required|integer|min:1',
+        ], [
+            'items.*.medicine_inventory_id.required' => 'This medicine is not available, so it cannot be dispensed.',
         ]);
 
-        // Check stock availability before processing
+        $prescription->load('items.medicine');
+
+        // Every medicine on the prescription must be covered by a batch.
+        $covered = collect($validated['items'])->pluck('prescription_item_id')->map(fn ($id) => (int) $id);
+        if ($prescription->items->pluck('id')->diff($covered)->isNotEmpty()) {
+            return redirect()->back()->with('error', 'Every medicine on the prescription needs a batch before it can be dispensed.');
+        }
+
+        // Re-check availability server-side: right medicine, not expired, enough stock.
         foreach ($validated['items'] as $item) {
+            $rxItem = $prescription->items->firstWhere('id', (int) $item['prescription_item_id']);
             $inventory = MedicineInventory::with('medicine')->find($item['medicine_inventory_id']);
-            if (!$inventory || $inventory->quantity < $item['quantity']) {
-                $medicineName = $inventory?->medicine?->generic_name ?? 'Unknown';
+            $medicineName = $rxItem?->medicine?->generic_name ?? 'Unknown';
+
+            if (!$inventory || (int) $inventory->medicine_id !== (int) $rxItem->medicine_id) {
+                return redirect()->back()->with('error', "The selected batch is not '{$medicineName}'.");
+            }
+
+            if ($inventory->expiry_date && Carbon::parse($inventory->expiry_date)->lte(now())) {
+                return redirect()->back()->with('error', "'{$medicineName}' batch is expired and cannot be dispensed.");
+            }
+
+            if ($inventory->quantity < $item['quantity']) {
                 return redirect()->back()->with('error',
-                    "Insufficient stock for '{$medicineName}'. " .
-                    "Requested: {$item['quantity']}, Available: " . ($inventory->quantity ?? 0)
+                    "Not enough stock for '{$medicineName}'. " .
+                    "Requested: {$item['quantity']}, Available: {$inventory->quantity}"
                 );
             }
         }
 
-        $record = DispensingRecord::create([
-            'prescription_id' => $prescription->id,
-            'pharmacist_id' => $request->user()->id,
-            'dispensed_at' => now(),
-            'notes' => $validated['notes'] ?? null,
-        ]);
-
-        foreach ($validated['items'] as $item) {
-            $inventory = MedicineInventory::findOrFail($item['medicine_inventory_id']);
-
-            // Create dispensed item with price from inventory record
-            $record->dispensedItems()->create([
-                'medicine_inventory_id' => $item['medicine_inventory_id'],
-                'quantity' => $item['quantity'],
-                'unit_price' => $inventory->unit_price,
+        DB::transaction(function () use ($request, $prescription, $validated) {
+            $record = DispensingRecord::create([
+                'prescription_id' => $prescription->id,
+                'pharmacist_id' => $request->user()->id,
+                'dispensed_at' => now(),
+                'notes' => $validated['notes'] ?? null,
             ]);
 
-            // Deduct from inventory
-            $inventory->decrement('quantity', $item['quantity']);
-        }
+            foreach ($validated['items'] as $item) {
+                $inventory = MedicineInventory::findOrFail($item['medicine_inventory_id']);
 
-        $prescription->update(['status' => 'dispensed']);
+                // Create dispensed item with price from inventory record
+                $record->dispensedItems()->create([
+                    'medicine_inventory_id' => $item['medicine_inventory_id'],
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $inventory->unit_price,
+                ]);
+
+                // Deduct from inventory
+                $inventory->decrement('quantity', $item['quantity']);
+            }
+
+            $prescription->update(['status' => 'dispensed']);
+        });
 
         ActivityLog::create([
             'user_id' => $request->user()->id,

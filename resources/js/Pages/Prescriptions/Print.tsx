@@ -14,6 +14,7 @@ interface Item {
 }
 
 interface Rx {
+    id: number;
     prescription_number: string;
     diagnosis: string | null;
     notes: string | null;
@@ -31,6 +32,16 @@ export default function PrescriptionPrint({ prescription: rx }: { prescription: 
 
     const age = ageFromDob(rx.patient.date_of_birth);
 
+    // window.close() only works on tabs opened by script. When the preview was
+    // reached by a normal redirect the call is ignored, so fall back to the
+    // prescription page.
+    const closePreview = () => {
+        window.close();
+        setTimeout(() => {
+            window.location.href = route('prescriptions.show', rx.id);
+        }, 150);
+    };
+
     return (
         <>
             <Head title={`Prescription ${rx.prescription_number}`} />
@@ -41,7 +52,7 @@ export default function PrescriptionPrint({ prescription: rx }: { prescription: 
                         <button onClick={() => window.print()} className="rounded-md bg-black px-4 py-1.5 text-sm font-medium text-white">
                             Print
                         </button>
-                        <button onClick={() => window.close()} className="rounded-md border border-gray-300 px-4 py-1.5 text-sm">
+                        <button onClick={closePreview} className="rounded-md border border-gray-300 px-4 py-1.5 text-sm">
                             Close
                         </button>
                     </div>

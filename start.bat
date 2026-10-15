@@ -137,7 +137,7 @@ echo.
 pause
 exit /b 1
 :check_db
-if exist "storage\app\.first-run-done" goto start_server
+if exist "storage\app\.first-run-done" goto update_db
 goto first_db
 :first_db
 echo.
@@ -150,6 +150,24 @@ call php artisan migrate --seed --force
 if errorlevel 1 goto db_fail
 echo DONE > "storage\app\.first-run-done"
 goto start_server
+:update_db
+rem  Already set up: apply any new database updates from newer versions
+rem  (offline-safe, changes nothing when there is nothing new). This also
+rem  adds the separate Admin account if an older install does not have it yet.
+call php artisan migrate --force >nul 2>nul
+if errorlevel 1 goto update_fail
+call php artisan db:seed --class=AdminAccountSeeder --force >nul 2>nul
+if errorlevel 1 goto update_fail
+goto start_server
+:update_fail
+echo.
+echo  [ERROR] The database could not be updated. If you use MySQL,
+echo  open XAMPP Control Panel, press Start on Apache and MySQL,
+echo  then double-click this file again.
+echo  If it still fails, take a photo of this window and send it to Mat.
+echo.
+pause
+exit /b 1
 :db_fail
 echo.
 echo  [ERROR] Setup did not finish. Read the red text above this message:

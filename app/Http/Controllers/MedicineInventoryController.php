@@ -48,9 +48,19 @@ class MedicineInventoryController extends Controller
             $q->whereColumn('quantity', '<=', 'reorder_level');
         })->withSum('inventories as total_stock', 'quantity')->get();
 
+        // Batches that still hold stock but are expired or expire within 30 days.
+        $expiring = MedicineInventory::with('medicine:id,generic_name')
+            ->whereHas('medicine', fn ($q) => $q->active())
+            ->where('quantity', '>', 0)
+            ->whereNotNull('expiry_date')
+            ->where('expiry_date', '<=', now()->addDays(30))
+            ->orderBy('expiry_date')
+            ->get(['id', 'medicine_id', 'batch_number', 'expiry_date', 'quantity']);
+
         return Inertia::render('Inventory/Index', [
             'inventories' => $inventories,
             'lowStock' => $lowStock,
+            'expiring' => $expiring,
             'filter' => $filter,
         ]);
     }

@@ -56,10 +56,14 @@ const pharmacistNav: NavSection[] = [
     },
     {
         label: 'Reports',
-        items: [
-            { name: 'Reports', route: 'reports.index', icon: 'bar-chart' },
-            { name: 'Activity Logs', route: 'activity-logs.index', icon: 'activity' },
-        ],
+        items: [{ name: 'Reports', route: 'reports.index', icon: 'bar-chart' }],
+    },
+];
+
+const adminNav: NavSection[] = [
+    {
+        label: 'Administration',
+        items: [{ name: 'Activity Logs', route: 'activity-logs.index', icon: 'activity' }],
     },
 ];
 
@@ -111,7 +115,7 @@ export default function Authenticated({
 }: PropsWithChildren<{ header?: ReactNode }>) {
     const user = usePage().props.auth.user;
     const role = user?.role || 'doctor';
-    const navSections = role === 'pharmacist' ? pharmacistNav : role === 'staff' ? staffNav : doctorNav;
+    const navSections = role === 'admin' ? adminNav : role === 'pharmacist' ? pharmacistNav : role === 'staff' ? staffNav : doctorNav;
     const initial = (user?.name || 'U').charAt(0).toUpperCase();
     // Pathname only (not query string) so pagination / search don't replay the entrance
     const pagePath = usePage().url.split('?')[0];
@@ -156,14 +160,6 @@ export default function Authenticated({
         return () => clearTimeout(t);
     }, [search]);
 
-    const handleBack = () => {
-        if (window.history.length > 1) {
-            window.history.back();
-        } else {
-            router.visit(route('dashboard'));
-        }
-    };
-
     const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') runSearch(search);
     };
@@ -187,32 +183,18 @@ export default function Authenticated({
                 }`}
             >
                 {/* Logo */}
-                <div className="flex items-center gap-2.5 px-5 pt-5 pb-4">
+                <Link
+                    href={route('dashboard')}
+                    className="flex items-center gap-2.5 px-5 pt-5 pb-4"
+                    aria-label="APPS - go to dashboard"
+                >
                     <img
                         src="/assets/logo.jpg"
                         alt="APPS logo"
                         className="h-9 w-9 rounded-[10px] object-cover shadow-sm"
                     />
-                    <div className="leading-tight">
-                        <span className="block text-[18px] font-bold tracking-tight text-soil-900">APPS</span>
-                        <span className="block text-[11px] text-soil-500">Pharmacy System</span>
-                    </div>
-                </div>
-
-                {/* Clinic card */}
-                <div className="mx-3 mb-2 rounded-[14px] border border-soil-200 bg-surface p-3.5">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-accent-50 text-accent-500">
-                            <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
-                            </svg>
-                        </div>
-                        <div className="min-w-0 leading-tight">
-                            <p className="truncate text-[13px] font-semibold text-soil-900">Rural Health Unit</p>
-                            <p className="truncate text-[11px] text-soil-500">San Manuel, Isabela</p>
-                        </div>
-                    </div>
-                </div>
+                    <span className="block text-[18px] font-bold leading-tight tracking-tight text-soil-900">APPS</span>
+                </Link>
 
                 {/* Navigation sections */}
                 <nav className="flex-1 overflow-y-auto px-3 pb-4">
@@ -286,17 +268,6 @@ export default function Authenticated({
                             </svg>
                         </button>
 
-                        {/* Back arrow */}
-                        <button
-                            onClick={handleBack}
-                            className="hidden h-9 w-9 items-center justify-center rounded-[10px] border border-soil-200 bg-surface text-soil-500 transition-all duration-150 hover:scale-105 hover:bg-soil-100 hover:text-soil-800 sm:inline-flex"
-                            aria-label="Go back"
-                        >
-                            <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-                            </svg>
-                        </button>
-
                         {/* Page heading */}
                         {header && (
                             <h1 className="truncate text-[15px] font-semibold tracking-tight text-soil-900">
@@ -308,7 +279,7 @@ export default function Authenticated({
                     {/* Right side */}
                     <div className="flex items-center gap-2.5">
                         {/* Search */}
-                        <div className="relative hidden md:block">
+                        <div className={`relative hidden ${role === 'admin' ? '' : 'md:block'}`}>
                             <svg
                                 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-soil-400"
                                 fill="none"
@@ -345,34 +316,19 @@ export default function Authenticated({
                         </Link>
 
                         {/* Notifications */}
-                        <button
-                            className="relative hidden h-9 w-9 items-center justify-center rounded-[10px] border border-soil-200 bg-surface text-soil-500 transition-all duration-150 hover:scale-105 hover:bg-soil-100 hover:text-soil-800 sm:inline-flex"
-                            aria-label="Notifications"
-                        >
-                            <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                            </svg>
-                            <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-success ring-2 ring-surface" />
-                        </button>
+                        <NotificationBell />
 
                         {/* Profile chip */}
                         <div className="relative">
                             <Dropdown>
                                 <Dropdown.Trigger>
-                                    <button className="flex items-center gap-2 rounded-[10px] px-2 py-1.5 text-sm text-soil-700 transition-colors duration-150 hover:bg-soil-100">
+                                    <button aria-label="Account menu" className="flex items-center rounded-[10px] px-1.5 py-1 text-sm text-soil-700 transition-colors duration-150 hover:bg-soil-100">
                                         <div className="relative">
                                             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-100 text-sm font-semibold text-accent-600">
                                                 {initial}
                                             </div>
                                             <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-success ring-2 ring-surface" />
                                         </div>
-                                        <span className="hidden leading-tight lg:block">
-                                            <span className="block text-[13px] font-medium text-soil-900">{user.name}</span>
-                                            <span className="block text-[11px] capitalize text-soil-500">{role}</span>
-                                        </span>
-                                        <svg className="hidden h-4 w-4 text-soil-400 lg:block" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                                        </svg>
                                     </button>
                                 </Dropdown.Trigger>
 
@@ -401,6 +357,92 @@ export default function Authenticated({
                     </motion.div>
                 </main>
             </div>
+        </div>
+    );
+}
+
+// ─── Notification bell ───
+
+interface AppNotification {
+    id: string;
+    tone: 'info' | 'warning' | 'danger' | 'success';
+    title: string;
+    body: string;
+    href: string;
+}
+
+const NOTE_DOT: Record<AppNotification['tone'], string> = {
+    info: 'bg-accent-500',
+    warning: 'bg-orange-500',
+    danger: 'bg-red-600',
+    success: 'bg-success',
+};
+
+function NotificationBell() {
+    const notifications = (usePage().props.notifications ?? []) as AppNotification[];
+    const [open, setOpen] = useState(false);
+
+    useEffect(() => {
+        if (!open) return;
+        const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [open]);
+
+    return (
+        <div className="relative hidden sm:block">
+            <button
+                onClick={() => setOpen((o) => !o)}
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-soil-200 bg-surface text-soil-500 transition-all duration-150 hover:scale-105 hover:bg-soil-100 hover:text-soil-800"
+                aria-label={notifications.length ? `Notifications (${notifications.length})` : 'Notifications'}
+                aria-expanded={open}
+            >
+                <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                </svg>
+                {notifications.length > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-surface">
+                        {notifications.length}
+                    </span>
+                )}
+            </button>
+
+            {open && <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />}
+
+            <Transition
+                show={open}
+                enter="transition ease-matie duration-200"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="transition ease-in duration-75"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+            >
+                <div className="absolute right-0 z-50 mt-2 w-80 origin-top-right overflow-hidden rounded-control border border-soil-200 bg-surface shadow-dropdown">
+                    <div className="border-b border-soil-200 px-4 py-3 text-sm font-semibold text-soil-900">Notifications</div>
+                    {notifications.length === 0 ? (
+                        <p className="px-4 py-8 text-center text-sm text-soil-500">You're all caught up.</p>
+                    ) : (
+                        <ul className="max-h-80 divide-y divide-soil-100 overflow-y-auto">
+                            {notifications.map((n) => (
+                                <li key={n.id}>
+                                    <Link
+                                        href={n.href}
+                                        onClick={() => setOpen(false)}
+                                        className="flex items-start gap-3 px-4 py-3 transition-colors duration-150 hover:bg-accent-50"
+                                    >
+                                        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${NOTE_DOT[n.tone]}`} />
+                                        <span className="min-w-0">
+                                            <span className="block text-sm font-medium text-soil-900">{n.title}</span>
+                                            {n.body && <span className="block text-xs text-soil-500">{n.body}</span>}
+                                        </span>
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </Transition>
         </div>
     );
 }

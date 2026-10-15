@@ -47,6 +47,9 @@ export default function PatientsCreate() {
         </div>
     );
 
+    // Patient info comes first: the medical section opens once the name is in.
+    const infoDone = data.first_name.trim() !== '' && data.last_name.trim() !== '';
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         if (data.date_of_birth && data.date_of_birth > todayISO()) {
@@ -118,15 +121,19 @@ export default function PatientsCreate() {
                                 <AddressSelect value={data.address} onChange={(v) => setData('address', v)} error={errors.address} />
                                 <div className="border-t border-soil-200 pt-5">
                                     <h4 className="text-sm font-semibold text-soil-800">Medical Information</h4>
-                                    <p className="mt-0.5 text-xs text-soil-500">Vital signs. Optional. Leave blank to add them later.</p>
-                                    <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                                    <p className="mt-0.5 text-xs text-soil-500">
+                                        {infoDone
+                                            ? 'Vital signs for this check-up. Optional. Leave blank to add them later.'
+                                            : 'Complete the patient information above first (first and last name).'}
+                                    </p>
+                                    <fieldset disabled={!infoDone} className={`mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 ${infoDone ? '' : 'opacity-50'}`}>
                                         {vitalField('bp_systolic', 'BP systolic (mmHg)', { min: 50, max: 300, placeholder: '120' })}
                                         {vitalField('bp_diastolic', 'BP diastolic (mmHg)', { min: 30, max: 200, placeholder: '80' })}
                                         {vitalField('pulse_rate', 'Pulse (bpm)', { min: 20, max: 250, placeholder: '72' })}
                                         {vitalField('height_cm', 'Height (cm)', { min: 30, max: 250, step: '0.1', placeholder: '165' })}
                                         {vitalField('weight_kg', 'Weight (kg)', { min: 1, max: 500, step: '0.1', placeholder: '60' })}
                                         {vitalField('temperature_c', 'Temperature (°C)', { min: 30, max: 45, step: '0.1', placeholder: '36.6' })}
-                                    </div>
+                                    </fieldset>
                                 </div>
                                 <div className="flex justify-end gap-3">
                                     <Link href={route('patients.index')} className="btn btn-secondary">Cancel</Link>

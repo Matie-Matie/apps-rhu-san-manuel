@@ -26,9 +26,7 @@ interface PrescriptionsPaginator {
 const STATUS_FILTERS = [
     { value: '', label: 'All' },
     { value: 'pending', label: 'Pending' },
-    { value: 'validated', label: 'Validated' },
     { value: 'dispensed', label: 'Dispensed' },
-    { value: 'cancelled', label: 'Cancelled' },
 ];
 
 function initials(first: string, last: string) {

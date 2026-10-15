@@ -60,6 +60,9 @@ Public registration is closed in V2, so these are the way in. **Change the passw
 | Doctor     | doctor@apps.test   | password |
 | Pharmacist | pharmacist@apps.test | password |
 | Staff      | staff@apps.test    | password |
+| Admin      | admin@apps.test    | password |
+
+The **Admin** account is separate from the clinic staff: it only sees the **Activity Logs** page (who did what, and when). Doctors and pharmacists no longer see Activity Logs.
 
 Adding a real staff member (run in the project folder):
 
@@ -72,7 +75,7 @@ App\Models\User::create([
   'name' => 'Maria Santos',
   'email' => 'maria.santos@gmail.com',
   'password' => 'temporary-password-123',
-  'role' => 'staff', // doctor | pharmacist | staff
+  'role' => 'staff', // doctor | pharmacist | staff | admin
 ]);
 ```
 
