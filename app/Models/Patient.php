@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -15,6 +16,7 @@ class Patient extends Model
         'gender',
         'contact_number',
         'address',
+        'created_by',
     ];
 
     protected $appends = ['age'];
@@ -24,6 +26,11 @@ class Patient extends Model
         return [
             'date_of_birth' => 'date:Y-m-d',
         ];
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function prescriptions(): HasMany

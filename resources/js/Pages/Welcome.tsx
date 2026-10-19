@@ -15,18 +15,15 @@ export default function Welcome({ auth, appVersion }: PageProps & { appVersion: 
         <>
             <Head title="Welcome" />
             <div className="relative flex min-h-screen flex-col overflow-hidden bg-accent-900">
-                {/* Background photo */}
+                {/* Background photo: the RHU PHARMACY CLINIC sign must stay visible, so the
+                    text sits on a panel to the right instead of a heavy full-page tint. */}
                 <div
-                    className="pointer-events-none absolute inset-0"
-                    style={{
-                        backgroundImage: 'url(/assets/bg.jpg)',
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'right center',
-                    }}
+                    className="pointer-events-none absolute inset-0 bg-no-repeat [background-position:left_top] [background-size:auto_56vh] lg:[background-size:cover] lg:bg-left"
+                    style={{ backgroundImage: 'url(/assets/bg.jpg)' }}
                 />
 
-                {/* Green tint to blend the photo into the brand */}
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-accent-900/75 via-accent-900/80 to-accent-900" />
+                {/* Light wash only: keeps the header readable, leaves the photo clear */}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-accent-900/35 via-transparent to-accent-900/45" />
 
                 {/* Subtle grain */}
                 <div
@@ -79,15 +76,15 @@ export default function Welcome({ auth, appVersion }: PageProps & { appVersion: 
                     </header>
 
                     {/* Hero */}
-                    <main className="flex flex-1 items-center px-6 py-12 sm:px-10">
-                        <div className="max-w-2xl">
+                    <main className="flex flex-1 items-end px-4 pb-6 pt-[34vh] sm:px-10 lg:items-center lg:justify-end lg:py-12">
+                        <div className="w-full max-w-xl rounded-3xl bg-accent-900/85 p-7 shadow-2xl backdrop-blur-md sm:p-9">
                             <motion.h1
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.5, delay: 0.1, ease: EASE }}
                                 className="text-4xl font-bold leading-[1.15] tracking-tight text-white sm:text-5xl"
                             >
-                                RURAL HEALTH
+                                RHU PHARMACY
                                 <br />
                                 CLINIC
                             </motion.h1>
@@ -157,9 +154,11 @@ export default function Welcome({ auth, appVersion }: PageProps & { appVersion: 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.5, delay: 0.3 }}
-                        className="px-6 py-6 text-center text-xs text-accent-200/70 sm:px-10"
+                        className="px-6 pb-6 text-center sm:px-10"
                     >
-                        Rural Health Unit Clinic, San Manuel, Isabela · {appVersion}
+                        <span className="inline-block rounded-full bg-accent-900/75 px-4 py-1.5 text-xs text-accent-100 backdrop-blur-sm">
+                            Rural Health Unit Clinic, San Manuel, Isabela · {appVersion}
+                        </span>
                     </motion.footer>
                 </div>
             </div>

@@ -279,7 +279,8 @@ class ClinicRevisionsTest extends TestCase
 
     public function test_report_periods_cover_the_expected_ranges(): void
     {
-        $user = $this->user('pharmacist');
+        // The period report is the doctor's; pharmacists get the Medicine Inventory Report.
+        $user = $this->user('doctor');
         $expect = [
             'daily' => ['2026-05-14', '2026-05-14'],
             'weekly' => ['2026-05-11', '2026-05-17'],

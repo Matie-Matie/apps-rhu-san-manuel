@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Prescription;
 use App\Models\DispensingRecord;
 use App\Models\Medicine;
+use App\Models\MedicineInventory;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,6 +17,11 @@ class ReportController extends Controller
 
     public function index(Request $request)
     {
+        // Pharmacists get the Medicine Inventory Report; doctors keep the clinical report.
+        if ($request->user()->isPharmacist()) {
+            return Inertia::render('Reports/Inventory', ['report' => $this->inventoryReport()]);
+        }
+
         [$period, $start, $end, $anchor] = $this->resolveRange($request);
 
         // Group in PHP by Carbon date instead of SQL strftime('%Y-%m-%d', ...),
@@ -48,6 +55,14 @@ class ReportController extends Controller
 
     public function print(Request $request)
     {
+        if ($request->user()->isPharmacist()) {
+            return Inertia::render('Reports/InventoryPrint', [
+                'report' => $this->inventoryReport(),
+                'generatedBy' => $request->user()->name,
+                'generatedAt' => now()->toIso8601String(),
+            ]);
+        }
+
         [$period, $start, $end, $anchor] = $this->resolveRange($request);
 
         return Inertia::render('Reports/Print', [
@@ -185,5 +200,69 @@ class ReportController extends Controller
             'diagnosed_total' => $diagnosed,
             'top_medicines' => $topMedicines,
         ];
+    }
+
+    /**
+     * Medicine Inventory Report: where every medicine stands right now.
+     * Live batches only (archived ones are reported as a count).
+     */
+    private function inventoryReport(): array
+    {
+        $today = now()->startOfDay();
+        $soon = now()->addDays(30)->endOfDay();
+
+        // Units dispensed per medicine over the last 30 days.
+        $dispensed = DB::table('dispensed_items')
+            ->join('medicine_inventories', 'dispensed_items.medicine_inventory_id', '=', 'medicine_inventories.id')
+            ->join('dispensing_records', 'dispensed_items.dispensing_record_id', '=', 'dispensing_records.id')
+            ->where('dispensing_records.dispensed_at', '>=', now()->subDays(30)->startOfDay())
+            ->groupBy('medicine_inventories.medicine_id')
+            ->selectRaw('medicine_inventories.medicine_id as medicine_id, COALESCE(SUM(dispensed_items.quantity), 0) as total')
+            ->pluck('total', 'medicine_id');
+
+        $summary = ['medicines' => 0, 'units' => 0, 'low' => 0, 'out' => 0, 'expiring' => 0, 'expired' => 0];
+
+        $rows = Medicine::active()->with('inventories')->orderBy('generic_name')->get()->map(function (Medicine $m) use ($today, $soon, $dispensed, &$summary) {
+            $batches = $m->inventories;
+            $stock = (int) $batches->sum('quantity');
+
+            $expired = $batches->filter(fn ($b) => $b->quantity > 0 && $b->expiry_date && Carbon::parse($b->expiry_date)->lt($today));
+            $expiring = $batches->filter(fn ($b) => $b->quantity > 0 && $b->expiry_date
+                && Carbon::parse($b->expiry_date)->gte($today) && Carbon::parse($b->expiry_date)->lte($soon));
+            $low = $batches->filter(fn ($b) => $b->quantity > 0 && $b->quantity <= $b->reorder_level);
+            $nearest = $batches->filter(fn ($b) => $b->quantity > 0 && $b->expiry_date)->min('expiry_date');
+
+            $status = match (true) {
+                $stock <= 0 => 'out',
+                $expired->isNotEmpty() => 'expired',
+                $low->isNotEmpty() => 'low',
+                $expiring->isNotEmpty() => 'expiring',
+                default => 'ok',
+            };
+
+            $summary['medicines']++;
+            $summary['units'] += $stock;
+            $summary['low'] += $low->count();
+            $summary['out'] += $stock <= 0 ? 1 : 0;
+            $summary['expiring'] += $expiring->count();
+            $summary['expired'] += $expired->count();
+
+            return [
+                'id' => $m->id,
+                'generic_name' => $m->generic_name,
+                'brand_name' => $m->brand_name,
+                'dosage_form' => $m->dosage_form,
+                'strength' => $m->strength,
+                'stock' => $stock,
+                'batches' => $batches->count(),
+                'nearest_expiry' => $nearest,
+                'dispensed_30d' => (int) ($dispensed[$m->id] ?? 0),
+                'status' => $status,
+            ];
+        })->values();
+
+        $summary['archived_batches'] = MedicineInventory::withoutGlobalScope('notArchived')->whereNotNull('archived_at')->count();
+
+        return ['summary' => $summary, 'rows' => $rows, 'as_of' => now()->toIso8601String()];
     }
 }

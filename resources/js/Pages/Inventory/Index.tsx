@@ -1,7 +1,9 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Pagination, { PaginationLink } from '@/Components/Pagination';
 import FadeIn from '@/Components/FadeIn';
-import { Head, Link } from '@inertiajs/react';
+import ConfirmModal from '@/Components/ConfirmModal';
+import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 
 interface InventoryItem {
@@ -14,8 +16,8 @@ interface InventoryItem {
     medicine: { id: number; generic_name: string; brand_name: string | null };
 }
 
-interface InventoriesPaginator {
-    data: InventoryItem[];
+interface Paginator<T> {
+    data: T[];
     links: PaginationLink[];
     current_page: number;
     last_page: number;
@@ -23,6 +25,8 @@ interface InventoriesPaginator {
     to: number | null;
     total: number;
 }
+
+type InventoriesPaginator = Paginator<InventoryItem>;
 
 interface ExpiringBatch {
     id: number;
@@ -68,13 +72,208 @@ function expiryTone(iso: string | null) {
     return { cls: 'text-soil-500', label: null, badge: '' };
 }
 
-export default function InventoryIndex({ inventories, lowStock, expiring = [], filter }: { inventories: InventoriesPaginator; lowStock: LowStockItem[]; expiring?: ExpiringBatch[]; filter: string | null }) {
+
+interface ArchivedBatch {
+    id: number;
+    batch_number: string | null;
+    expiry_date: string | null;
+    quantity: number;
+    archived_at: string;
+    medicine: { id: number; generic_name: string; brand_name: string | null };
+}
+
+interface ArchivedMedicine {
+    id: number;
+    generic_name: string;
+    brand_name: string | null;
+    archived_at: string | null;
+    total_stock: number | null;
+}
+
+function InventoryTabs({ tab, archivedCount }: { tab: 'active' | 'archived'; archivedCount: number }) {
+    const base = 'inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors';
+    const on = 'border-accent-500 text-accent-700';
+    const off = 'border-transparent text-soil-500 hover:text-soil-800';
+    return (
+        <div className="mb-6 flex gap-1 border-b border-soil-200">
+            <Link href={route('inventory.index')} className={`${base} ${tab === 'active' ? on : off}`}>
+                Live stock
+            </Link>
+            <Link href={route('inventory.index', { tab: 'archived' })} className={`${base} ${tab === 'archived' ? on : off}`}>
+                Archive
+                <span className="rounded-full bg-soil-100 px-2 py-0.5 text-xs font-bold tabular-nums text-soil-700">{archivedCount}</span>
+            </Link>
+        </div>
+    );
+}
+
+function ArchiveView({ batches, medicines, archivedCount }: { batches: Paginator<ArchivedBatch>; medicines: ArchivedMedicine[]; archivedCount: number }) {
+    const [restoreId, setRestoreId] = useState<number | null>(null);
+    const [busy, setBusy] = useState(false);
+
+    const confirmRestore = () => {
+        if (restoreId === null) return;
+        setBusy(true);
+        router.post(route('inventory.restore', restoreId), {}, {
+            preserveScroll: true,
+            onFinish: () => { setBusy(false); setRestoreId(null); },
+        });
+    };
+
+    return (
+        <AuthenticatedLayout header="Medicine Inventory">
+            <Head title="Inventory Archive" />
+            <div className="page-content">
+                <InventoryTabs tab="archived" archivedCount={archivedCount} />
+
+                <FadeIn y={12} duration={0.4}>
+                    <p className="mb-5 text-sm text-soil-600">
+                        Expired and near-expiry batches are moved here so they stay out of live stock and dispensing. Anything archived is
+                        permanently deleted after 6 months; restore it before then if it was archived by mistake.
+                    </p>
+                </FadeIn>
+
+                <FadeIn y={18} duration={0.45}>
+                    <div className="card mb-6 overflow-hidden">
+                        <div className="card-header">
+                            <h2 className="text-base font-bold tracking-tight text-soil-900">Archived Batches</h2>
+                            <span className="rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold tabular-nums text-accent-700">
+                                {batches.total} {batches.total === 1 ? 'batch' : 'batches'}
+                            </span>
+                        </div>
+                        <div className="table-container rounded-none border-0 shadow-none">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Medicine</th>
+                                        <th>Batch #</th>
+                                        <th>Expiry</th>
+                                        <th>Qty left</th>
+                                        <th>Archived on</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {batches.data.map((b) => (
+                                        <tr key={b.id}>
+                                            <td>
+                                                <div className="text-sm font-medium text-soil-900">{b.medicine.generic_name}</div>
+                                                {b.medicine.brand_name && <div className="mt-0.5 text-xs text-soil-400">{b.medicine.brand_name}</div>}
+                                            </td>
+                                            <td className="tabular-nums text-soil-700">{b.batch_number || 'N/A'}</td>
+                                            <td className="tabular-nums text-soil-700">{formatDate(b.expiry_date)}</td>
+                                            <td className="tabular-nums text-soil-700">{b.quantity}</td>
+                                            <td className="tabular-nums text-soil-500">{formatDate(b.archived_at)}</td>
+                                            <td>
+                                                <button type="button" onClick={() => setRestoreId(b.id)} className="btn btn-secondary btn-sm">
+                                                    Restore
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {batches.data.length === 0 && (
+                                        <tr>
+                                            <td colSpan={6} className="px-5 py-10 text-center text-sm text-soil-500">
+                                                No archived batches yet. Expired and near-expiry batches you archive appear here.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <Pagination
+                            links={batches.links}
+                            currentPage={batches.current_page}
+                            lastPage={batches.last_page}
+                            from={batches.from}
+                            to={batches.to}
+                            total={batches.total}
+                            itemLabel="batches"
+                        />
+                    </div>
+                </FadeIn>
+
+                {medicines.length > 0 && (
+                    <FadeIn y={18} duration={0.45}>
+                        <div className="card overflow-hidden">
+                            <div className="card-header">
+                                <h2 className="text-base font-bold tracking-tight text-soil-900">Archived Medicines</h2>
+                                <span className="rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold tabular-nums text-accent-700">{medicines.length}</span>
+                            </div>
+                            <div className="table-container rounded-none border-0 shadow-none">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Medicine</th>
+                                            <th>Total stock</th>
+                                            <th>Archived on</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {medicines.map((m) => (
+                                            <tr key={m.id}>
+                                                <td>
+                                                    <div className="text-sm font-medium text-soil-900">{m.generic_name}</div>
+                                                    {m.brand_name && <div className="mt-0.5 text-xs text-soil-400">{m.brand_name}</div>}
+                                                </td>
+                                                <td className="tabular-nums text-soil-700">{m.total_stock ?? 0}</td>
+                                                <td className="tabular-nums text-soil-500">{formatDate(m.archived_at)}</td>
+                                                <td>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => router.post(route('medicines.restore', m.id), {}, { preserveScroll: true })}
+                                                        className="btn btn-secondary btn-sm"
+                                                    >
+                                                        Restore
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </FadeIn>
+                )}
+            </div>
+
+            <ConfirmModal
+                open={restoreId !== null}
+                title="Restore this batch?"
+                message="It goes back to live stock, alerts and dispensing. If it is expired, it will show as expired again."
+                confirmLabel="Restore batch"
+                busy={busy}
+                onConfirm={confirmRestore}
+                onClose={() => !busy && setRestoreId(null)}
+            />
+        </AuthenticatedLayout>
+    );
+}
+
+export default function InventoryIndex({ inventories, lowStock, expiring = [], filter, tab = 'active', archivedBatches = null, archivedMedicines = [], archivedCount = 0, archivableCount = 0 }: { inventories: InventoriesPaginator; lowStock: LowStockItem[]; expiring?: ExpiringBatch[]; filter: string | null; tab?: 'active' | 'archived'; archivedBatches?: Paginator<ArchivedBatch> | null; archivedMedicines?: ArchivedMedicine[]; archivedCount?: number; archivableCount?: number }) {
+    const [archiveId, setArchiveId] = useState<number | null>(null);
+    const [archiveAll, setArchiveAll] = useState(false);
+    const [busy, setBusy] = useState(false);
+
+    if (tab === 'archived' && archivedBatches) {
+        return <ArchiveView batches={archivedBatches} medicines={archivedMedicines} archivedCount={archivedCount} />;
+    }
+
+    const runArchive = () => {
+        setBusy(true);
+        const opts = { preserveScroll: true, onFinish: () => { setBusy(false); setArchiveId(null); setArchiveAll(false); } };
+        if (archiveAll) router.post(route('inventory.archive-expiring'), {}, opts);
+        else if (archiveId !== null) router.post(route('inventory.archive', archiveId), {}, opts);
+    };
+
     const expiredBatches = expiring.filter((b) => new Date(b.expiry_date).getTime() < Date.now());
     const expiringSoon = expiring.filter((b) => new Date(b.expiry_date).getTime() >= Date.now());
     return (
         <AuthenticatedLayout header="Medicine Inventory">
             <Head title="Inventory" />
             <div className="page-content">
+                <InventoryTabs tab="active" archivedCount={archivedCount} />
                 {filter && (
                     <FadeIn y={12} duration={0.4}>
                         <div className="mb-6 flex items-center justify-between gap-3 rounded-control border border-accent-200 bg-accent-50 p-4">
@@ -125,7 +324,12 @@ export default function InventoryIndex({ inventories, lowStock, expiring = [], f
                                           ? 'Expired batches: do not dispense'
                                           : 'Expiring Soon (within 30 days)'}
                                 </p>
-                                <div className="mt-1.5 flex flex-wrap gap-2">
+                                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                    {archivableCount > 0 && (
+                                        <button type="button" onClick={() => setArchiveAll(true)} className="btn btn-secondary btn-sm">
+                                            Archive all ({archivableCount})
+                                        </button>
+                                    )}
                                     {expiring.map((b) => {
                                         const isExpired = new Date(b.expiry_date).getTime() < Date.now();
                                         return (
@@ -225,6 +429,18 @@ export default function InventoryIndex({ inventories, lowStock, expiring = [], f
                                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                                                             </svg>
                                                         </Link>
+                                                        {expiry.label && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setArchiveId(inv.id)}
+                                                                title="Move to archive"
+                                                                className="rounded-[8px] p-2 text-soil-400 transition-colors duration-150 hover:bg-orange-50 hover:text-orange-700"
+                                                            >
+                                                                <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m6 4.125l2.25 2.25m0 0l2.25 2.25M12 13.875l2.25-2.25M12 13.875l-2.25 2.25M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                                                                </svg>
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </motion.tr>
@@ -253,6 +469,18 @@ export default function InventoryIndex({ inventories, lowStock, expiring = [], f
                     </div>
                 </FadeIn>
             </div>
+
+            <ConfirmModal
+                open={archiveId !== null || archiveAll}
+                title={archiveAll ? `Archive ${archivableCount} batch(es)?` : 'Move this batch to the archive?'}
+                message={archiveAll
+                    ? 'Every expired or near-expiry batch (expiring within 30 days) leaves live stock and dispensing. You can restore any of them from the Archive tab, and they are deleted for good after 6 months.'
+                    : 'It leaves live stock and dispensing. You can restore it from the Archive tab, and it is deleted for good after 6 months.'}
+                confirmLabel={archiveAll ? 'Archive all' : 'Move to archive'}
+                busy={busy}
+                onConfirm={runArchive}
+                onClose={() => { if (!busy) { setArchiveId(null); setArchiveAll(false); } }}
+            />
         </AuthenticatedLayout>
     );
 }

@@ -52,6 +52,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/medicines/{medicine}/add-stock', [MedicineController::class, 'addStock'])->name('medicines.add-stock');
 
         Route::get('/inventory', [MedicineInventoryController::class, 'index'])->name('inventory.index');
+        Route::post('/inventory/archive-expiring', [MedicineInventoryController::class, 'archiveExpiring'])->name('inventory.archive-expiring');
+        Route::post('/inventory/{inventory}/archive', [MedicineInventoryController::class, 'archive'])->name('inventory.archive');
+        Route::post('/inventory/{inventoryId}/restore', [MedicineInventoryController::class, 'restore'])->name('inventory.restore');
         Route::get('/inventory/{inventory}/edit', [MedicineInventoryController::class, 'edit'])->name('inventory.edit');
         Route::put('/inventory/{inventory}', [MedicineInventoryController::class, 'update'])->name('inventory.update');
 

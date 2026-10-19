@@ -125,7 +125,7 @@ class PatientController extends Controller
             ->all();
 
         $patient = DB::transaction(function () use ($validated, $vitals, $request) {
-            $patient = Patient::create(Arr::except($validated, PatientVital::SIGNS));
+            $patient = Patient::create(Arr::except($validated, PatientVital::SIGNS) + ['created_by' => $request->user()->id]);
 
             if ($vitals) {
                 $patient->vitals()->create($vitals + ['recorded_by' => $request->user()->id]);

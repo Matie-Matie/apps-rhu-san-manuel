@@ -1,1 +1,0 @@
-import{a as t,j as o}from"./app-CkmR1ULs.js";const p=t.forwardRef(function({type:u="text",className:r="",isFocused:f=!1,...n},s){const e=t.useRef(null);return t.useImperativeHandle(s,()=>({focus:()=>e.current?.focus()})),t.useEffect(()=>{f&&e.current?.focus()},[f]),o.jsx("input",{...n,type:u,className:"input-field"+(r?" "+r:""),ref:e})});export{p as T};

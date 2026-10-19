@@ -1,0 +1,1 @@
+import{j as r}from"./app-BJn9QlWQ.js";import{m as s}from"./proxy-Bi_aShRD.js";function p({children:t,y:i=16,delay:a=0,duration:o=.4,className:n}){return r.jsx(s.div,{initial:{opacity:0,y:i},animate:{opacity:1,y:0},transition:{duration:o,delay:a,ease:[.16,1,.3,1]},style:{willChange:"transform, opacity"},className:n,children:t})}export{p as F};

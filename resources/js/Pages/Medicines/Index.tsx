@@ -33,7 +33,7 @@ function StockBadge({ stock }: { stock: number | null }) {
     return <span className="badge badge-in-stock tabular-nums">{qty} in stock</span>;
 }
 
-export default function MedicinesIndex({ medicines, showingArchived, archivedCount }: { medicines: MedicinesPaginator; showingArchived: boolean; archivedCount: number }) {
+export default function MedicinesIndex({ medicines }: { medicines: MedicinesPaginator }) {
     const { auth } = usePage().props as any;
     const role = auth?.user?.role;
     const isDoctor = role === 'doctor';
@@ -41,23 +41,6 @@ export default function MedicinesIndex({ medicines, showingArchived, archivedCou
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [deleting, setDeleting] = useState(false);
 
-    const [archiveId, setArchiveId] = useState<number | null>(null);
-    const [archiving, setArchiving] = useState(false);
-
-    const confirmArchive = () => {
-        if (archiveId === null) return;
-        setArchiving(true);
-        router.post(route('medicines.archive', archiveId), {}, {
-            onFinish: () => {
-                setArchiving(false);
-                setArchiveId(null);
-            },
-        });
-    };
-
-    const restoreMedicine = (id: number) => {
-        router.post(route('medicines.restore', id), {}, { preserveScroll: true });
-    };
 
     // Staged stock changes (medicine id -> units to add/remove); nothing is saved until "Save changes".
     const [deltas, setDeltas] = useState<Record<number, number>>({});
@@ -122,22 +105,12 @@ export default function MedicinesIndex({ medicines, showingArchived, archivedCou
                 <FadeIn y={18} duration={0.45}>
                     <div className="card overflow-hidden">
                         <div className="card-header">
-                            <h2 className="text-base font-bold tracking-tight text-soil-900">
-                                {showingArchived ? 'Archived Medicines' : 'Medicine Catalog'}
-                            </h2>
+                            <h2 className="text-base font-bold tracking-tight text-soil-900">Medicine Catalog</h2>
                             <div className="flex items-center gap-3">
                                 <span className="rounded-full bg-accent-100 px-3 py-1 text-xs font-semibold tabular-nums text-accent-700">
                                     {medicines.total} {medicines.total === 1 ? 'medicine' : 'medicines'}
                                 </span>
                                 {!isDoctor && (
-                                    <Link
-                                        href={showingArchived ? route('medicines.index') : route('medicines.index', { archived: 1 })}
-                                        className="btn btn-secondary btn-sm"
-                                    >
-                                        {showingArchived ? 'Back to catalog' : `Archive (${archivedCount})`}
-                                    </Link>
-                                )}
-                                {!isDoctor && !showingArchived && (
                                     <Link href={route('medicines.create')} className="btn btn-primary btn-sm">
                                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -200,16 +173,6 @@ export default function MedicinesIndex({ medicines, showingArchived, archivedCou
                                             </td>
                                             {!isDoctor && (
                                                 <td>
-                                                    {showingArchived ? (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => restoreMedicine(m.id)}
-                                                            title="Restore medicine"
-                                                            className="btn btn-secondary btn-sm"
-                                                        >
-                                                            Restore
-                                                        </button>
-                                                    ) : (
                                                     <div className="flex items-center justify-start gap-1.5">
                                                         <div
                                                             className={`mr-1 flex items-center overflow-hidden rounded-[10px] border ${
@@ -276,15 +239,6 @@ export default function MedicinesIndex({ medicines, showingArchived, archivedCou
                                                             </svg>
                                                         </Link>
                                                         <button
-                                                            onClick={() => setArchiveId(m.id)}
-                                                            title="Archive medicine"
-                                                            className="rounded-[8px] p-2 text-soil-400 transition-colors duration-150 hover:bg-warning-light hover:text-warning"
-                                                        >
-                                                            <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                                                            </svg>
-                                                        </button>
-                                                        <button
                                                             onClick={() => setDeleteId(m.id)}
                                                             title="Delete medicine"
                                                             className="rounded-[8px] p-2 text-soil-400 transition-colors duration-150 hover:bg-error-light hover:text-error"
@@ -294,7 +248,6 @@ export default function MedicinesIndex({ medicines, showingArchived, archivedCou
                                                             </svg>
                                                         </button>
                                                     </div>
-                                                    )}
                                                 </td>
                                             )}
                                         </motion.tr>
@@ -349,18 +302,6 @@ export default function MedicinesIndex({ medicines, showingArchived, archivedCou
                 busy={deleting}
                 onConfirm={confirmDelete}
                 onClose={() => !deleting && setDeleteId(null)}
-            />
-
-            {/* Archive confirmation */}
-            <ConfirmModal
-                open={archiveId !== null}
-                tone="action"
-                title="Archive Medicine?"
-                message="This will hide the medicine from the catalog, prescriptions, and inventory. It stays in the archive and is permanently deleted after 6 months. You can restore it anytime before that."
-                confirmLabel="Archive Medicine"
-                busy={archiving}
-                onConfirm={confirmArchive}
-                onClose={() => !archiving && setArchiveId(null)}
             />
         </AuthenticatedLayout>
     );

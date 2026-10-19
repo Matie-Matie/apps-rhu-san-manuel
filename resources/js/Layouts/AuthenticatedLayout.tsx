@@ -56,7 +56,7 @@ const pharmacistNav: NavSection[] = [
     },
     {
         label: 'Reports',
-        items: [{ name: 'Reports', route: 'reports.index', icon: 'bar-chart' }],
+        items: [{ name: 'Medicine Inventory Report', route: 'reports.index', icon: 'bar-chart' }],
     },
 ];
 
@@ -193,7 +193,14 @@ export default function Authenticated({
                         alt="APPS logo"
                         className="h-9 w-9 rounded-[10px] object-cover shadow-sm"
                     />
-                    <span className="block text-[18px] font-bold leading-tight tracking-tight text-soil-900">APPS</span>
+                    <span className="min-w-0">
+                        <span className="block text-[18px] font-bold leading-tight tracking-tight text-soil-900">APPS</span>
+                        <span className="block text-[10.5px] font-medium leading-[1.25] text-soil-500">
+                            Rural Health Unit
+                            <br />
+                            San Manuel, Isabela
+                        </span>
+                    </span>
                 </Link>
 
                 {/* Navigation sections */}
@@ -381,6 +388,22 @@ const NOTE_DOT: Record<AppNotification['tone'], string> = {
 function NotificationBell() {
     const notifications = (usePage().props.notifications ?? []) as AppNotification[];
     const [open, setOpen] = useState(false);
+
+    // Re-fetch just the notifications every 30s (and when the tab regains focus),
+    // so e.g. a doctor sees a newly registered patient without reloading.
+    useEffect(() => {
+        const refresh = () => {
+            if (document.visibilityState === 'visible') {
+                router.reload({ only: ['notifications'] });
+            }
+        };
+        const timer = window.setInterval(refresh, 30_000);
+        document.addEventListener('visibilitychange', refresh);
+        return () => {
+            window.clearInterval(timer);
+            document.removeEventListener('visibilitychange', refresh);
+        };
+    }, []);
 
     useEffect(() => {
         if (!open) return;

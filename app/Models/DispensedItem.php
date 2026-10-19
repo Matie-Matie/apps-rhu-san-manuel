@@ -21,6 +21,7 @@ class DispensedItem extends Model
 
     public function medicineInventory(): BelongsTo
     {
-        return $this->belongsTo(MedicineInventory::class);
+        // Dispensing history must keep resolving its batch even after the batch is archived.
+        return $this->belongsTo(MedicineInventory::class)->withoutGlobalScope('notArchived');
     }
 }

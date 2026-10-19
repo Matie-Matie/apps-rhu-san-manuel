@@ -15,10 +15,13 @@ class MedicineController extends Controller
     {
         $perPage = (int) $request->get('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50], true) ? $perPage : 10;
-        $showingArchived = $request->boolean('archived');
+        // The archive now lives under Inventory. Old ?archived=1 links land there.
+        if ($request->boolean('archived')) {
+            return redirect()->route('inventory.index', ['tab' => 'archived']);
+        }
 
         $medicines = Medicine::withSum('inventories as total_stock', 'quantity')
-            ->when($showingArchived, fn ($q) => $q->archived(), fn ($q) => $q->active())
+            ->active()
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->input('search'));
                 $query->where(function ($q) use ($search) {
@@ -31,12 +34,8 @@ class MedicineController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        $archivedCount = Medicine::archived()->count();
-
         return Inertia::render('Medicines/Index', [
             'medicines' => $medicines,
-            'showingArchived' => $showingArchived,
-            'archivedCount' => $archivedCount,
         ]);
     }
 
@@ -147,7 +146,7 @@ class MedicineController extends Controller
             'description' => "Archived medicine {$medicine->generic_name}",
         ]);
 
-        return redirect()->route('medicines.index')
+        return redirect()->route('inventory.index', ['tab' => 'archived'])
             ->with('success', "{$medicine->generic_name} moved to archive.");
     }
 
@@ -169,7 +168,7 @@ class MedicineController extends Controller
             'description' => "Restored medicine {$medicine->generic_name} from archive",
         ]);
 
-        return redirect()->route('medicines.index', ['archived' => 1])
+        return redirect()->route('inventory.index', ['tab' => 'archived'])
             ->with('success', "{$medicine->generic_name} restored.");
     }
 

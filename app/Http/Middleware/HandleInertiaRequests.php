@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\MedicineInventory;
+use App\Models\Patient;
 use App\Models\Prescription;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -115,6 +116,24 @@ class HandleInertiaRequests extends Middleware
         }
 
         if ($user->isDoctor()) {
+            // Patients the front desk just registered that no doctor has seen yet.
+            Patient::whereHas('creator', fn ($q) => $q->where('role', 'staff'))
+                ->whereDoesntHave('prescriptions')
+                ->where('created_at', '>=', now()->subDays(3))
+                ->with('creator:id,name')
+                ->latest()
+                ->take(5)
+                ->get()
+                ->each(function (Patient $patient) use (&$items) {
+                    $items[] = [
+                        'id' => 'new-patient-'.$patient->id,
+                        'tone' => 'info',
+                        'title' => 'New patient: '.$patient->first_name.' '.$patient->last_name,
+                        'body' => 'Added by '.($patient->creator?->name ?? 'front desk').' · waiting for a doctor.',
+                        'href' => route('patients.show', $patient->id),
+                    ];
+                });
+
             Prescription::where('doctor_id', $user->id)
                 ->where('status', 'dispensed')
                 ->where('updated_at', '>=', now()->subDays(3))

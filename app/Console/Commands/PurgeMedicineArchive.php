@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\ActivityLog;
 use App\Models\Medicine;
+use App\Models\MedicineInventory;
 use Illuminate\Console\Command;
 
 class PurgeMedicineArchive extends Command
@@ -43,7 +44,22 @@ class PurgeMedicineArchive extends Command
             $purged++;
         }
 
-        $this->info("Purged {$purged} medicine(s), kept {$skipped} with prescription history.");
+        // Archived batches follow the same 6-month rule; any batch that was ever
+        // dispensed stays so the dispensing history keeps resolving.
+        $batchesPurged = 0;
+        MedicineInventory::withoutGlobalScope('notArchived')
+            ->whereNotNull('archived_at')
+            ->where('archived_at', '<', $cutoff)
+            ->get()
+            ->each(function (MedicineInventory $batch) use (&$batchesPurged) {
+                if ($batch->dispensedItems()->exists()) {
+                    return;
+                }
+                $batch->delete();
+                $batchesPurged++;
+            });
+
+        $this->info("Purged {$purged} medicine(s), kept {$skipped} with prescription history; purged {$batchesPurged} archived batch(es).");
 
         return self::SUCCESS;
     }
