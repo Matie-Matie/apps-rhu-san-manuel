@@ -10,7 +10,7 @@ const features = [
     'Complete dispensing records',
 ];
 
-export default function Welcome({ auth, appVersion }: PageProps & { appVersion: string }) {
+export default function Welcome({ auth }: PageProps) {
     return (
         <>
             <Head title="Automated Prescription Processing System" />
@@ -18,8 +18,8 @@ export default function Welcome({ auth, appVersion }: PageProps & { appVersion: 
                 {/* Background photo: the clinic sign in the photo must stay visible, so the
                     copy sits on a panel to the right instead of a heavy full-page tint. */}
                 <div
-                    className="pointer-events-none absolute inset-0 bg-no-repeat [background-position:left_top] [background-size:auto_56vh] lg:[background-size:cover] lg:bg-left"
-                    style={{ backgroundImage: 'url(/assets/bg.jpg)' }}
+                    className="pointer-events-none absolute inset-0 bg-no-repeat [background-position:left_top] [background-size:auto_44vh] sm:[background-size:auto_48vh] lg:[background-size:cover] lg:bg-[position:80%_center]"
+                    style={{ backgroundImage: 'url(/assets/bg-clinic.jpg)' }}
                 />
 
                 {/* Light wash only: keeps the header readable, leaves the photo clear */}
@@ -54,8 +54,8 @@ export default function Welcome({ auth, appVersion }: PageProps & { appVersion: 
                     </header>
 
                     {/* Hero */}
-                    <main className="flex flex-1 items-end px-4 pb-6 pt-[34vh] sm:px-10 lg:items-center lg:justify-end lg:py-12">
-                        <div className="w-full max-w-xl rounded-3xl bg-accent-900/85 p-7 shadow-2xl backdrop-blur-md sm:p-9">
+                    <main className="flex flex-1 items-end px-4 pb-6 pt-[34vh] sm:px-10 lg:justify-end lg:py-12">
+                        <div className="w-full max-w-lg rounded-3xl bg-accent-900/85 p-7 shadow-2xl backdrop-blur-md sm:p-9">
                             <motion.h1
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -135,7 +135,7 @@ export default function Welcome({ auth, appVersion }: PageProps & { appVersion: 
                         className="px-6 pb-6 text-center sm:px-10"
                     >
                         <span className="inline-block rounded-full bg-accent-900/75 px-4 py-1.5 text-xs text-accent-100 backdrop-blur-sm">
-                            Rural Health Unit Clinic, San Manuel, Isabela · {appVersion}
+                            Rural Health Unit Clinic, San Manuel, Isabela
                         </span>
                     </motion.footer>
                 </div>
