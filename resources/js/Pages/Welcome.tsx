@@ -126,18 +126,6 @@ export default function Welcome({ auth }: PageProps) {
                             </motion.div>
                         </div>
                     </main>
-
-                    {/* Footer */}
-                    <motion.footer
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.5, delay: 0.3 }}
-                        className="px-6 pb-6 text-center sm:px-10"
-                    >
-                        <span className="inline-block rounded-full bg-accent-900/75 px-4 py-1.5 text-xs text-accent-100 backdrop-blur-sm">
-                            Rural Health Unit Clinic, San Manuel, Isabela
-                        </span>
-                    </motion.footer>
                 </div>
             </div>
         </>
