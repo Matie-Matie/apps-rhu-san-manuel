@@ -13,10 +13,10 @@ const features = [
 export default function Welcome({ auth, appVersion }: PageProps & { appVersion: string }) {
     return (
         <>
-            <Head title="Welcome" />
+            <Head title="Automated Prescription Processing System" />
             <div className="relative flex min-h-screen flex-col overflow-hidden bg-accent-900">
-                {/* Background photo: the RHU PHARMACY CLINIC sign must stay visible, so the
-                    text sits on a panel to the right instead of a heavy full-page tint. */}
+                {/* Background photo: the clinic sign in the photo must stay visible, so the
+                    copy sits on a panel to the right instead of a heavy full-page tint. */}
                 <div
                     className="pointer-events-none absolute inset-0 bg-no-repeat [background-position:left_top] [background-size:auto_56vh] lg:[background-size:cover] lg:bg-left"
                     style={{ backgroundImage: 'url(/assets/bg.jpg)' }}
@@ -36,8 +36,9 @@ export default function Welcome({ auth, appVersion }: PageProps & { appVersion: 
                 />
 
                 <div className="relative flex flex-1 flex-col">
-                    {/* Header */}
-                    <header className="flex items-center justify-between px-6 py-6 sm:px-10">
+                    {/* Header — logo only. The single call to action lives in the hero card,
+                        so there is no second "Log in" button up here. */}
+                    <header className="flex items-center px-6 py-6 sm:px-10">
                         <motion.div
                             initial={{ opacity: 0, y: 12 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -50,29 +51,6 @@ export default function Welcome({ auth, appVersion }: PageProps & { appVersion: 
                                 className="h-16 w-16 rounded-2xl object-cover shadow-md sm:h-20 sm:w-20"
                             />
                         </motion.div>
-
-                        <motion.nav
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 0.5, delay: 0.1, ease: EASE }}
-                            className="flex items-center gap-3"
-                        >
-                            {auth.user ? (
-                                <Link
-                                    href={route('dashboard')}
-                                    className="btn btn-primary btn-sm"
-                                >
-                                    Dashboard
-                                </Link>
-                            ) : (
-                                <Link
-                                    href={route('login')}
-                                    className="btn btn-primary btn-sm"
-                                >
-                                    Log in
-                                </Link>
-                            )}
-                        </motion.nav>
                     </header>
 
                     {/* Hero */}
@@ -82,11 +60,11 @@ export default function Welcome({ auth, appVersion }: PageProps & { appVersion: 
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.5, delay: 0.1, ease: EASE }}
-                                className="text-4xl font-bold leading-[1.15] tracking-tight text-white sm:text-5xl"
+                                className="text-3xl font-bold leading-[1.12] tracking-tight text-white sm:text-[2.4rem]"
                             >
-                                RHU PHARMACY
+                                Automated Prescription
                                 <br />
-                                CLINIC
+                                Processing System
                             </motion.h1>
 
                             <motion.p
